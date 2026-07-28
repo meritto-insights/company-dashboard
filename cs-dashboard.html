@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meritto CS Pulse</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --navy:#0d1b3f; --navy-2:#16275c; --brand:#4437B8; --brand-2:#7c6cf0;
+    --bg:#f6f7fb; --card:#ffffff; --text:#1e2235; --muted:#6b7188;
+    --border:#e3e5ef; --danger:#c0392b; --ok:#1e8e5a; --sun:#ffce3d; --teal:#2dd4bf;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* ---------- Login screen ---------- */
+  #loginScreen{position:relative;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;background:var(--bg)}
+  .tint{position:absolute;border-radius:50%;filter:blur(80px);opacity:.35}
+  .tint.t1{width:420px;height:420px;background:#ded8ff;top:-140px;left:-120px}
+  .tint.t2{width:360px;height:360px;background:#c9f5ec;bottom:-120px;right:-100px}
+  .tint.t3{width:260px;height:260px;background:#ffe7f3;bottom:8%;left:12%}
+
+  .login-card{position:relative;display:flex;background:var(--card);border-radius:24px;overflow:hidden;
+    box-shadow:0 24px 70px rgba(13,27,63,.16);max-width:880px;width:94%;min-height:440px;
+    animation:pop .5s cubic-bezier(.2,1.2,.4,1)}
+  @keyframes pop{from{transform:scale(.96) translateY(16px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+
+  .login-left{flex:1.15;position:relative;background:var(--navy);padding:48px 44px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+  .glow{position:absolute;border-radius:50%;filter:blur(60px)}
+  .glow.g1{width:280px;height:280px;background:var(--brand-2);opacity:.28;top:-80px;right:-70px}
+  .glow.g2{width:240px;height:240px;background:var(--teal);opacity:.14;bottom:-80px;left:-60px}
+  .login-left .inner{position:relative}
+  .login-left img.logo{height:30px;width:auto;margin-bottom:34px}
+  .login-left h1{color:#fff;font-size:29px;font-weight:700;letter-spacing:-.5px;line-height:1.3;margin-bottom:14px}
+  .login-left h1 .hl{background:linear-gradient(90deg,#8f7dff,#5eead4);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .login-left p{color:rgba(255,255,255,.62);font-size:14px;line-height:1.65}
+  .login-left .foot{position:relative;margin-top:36px;color:rgba(255,255,255,.4);font-size:11px;letter-spacing:.8px}
+
+  .login-right{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 36px;text-align:center}
+  .logo-dot{width:44px;height:44px;border-radius:12px;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;margin-bottom:16px}
+  .login-right h1{font-size:20px;margin-bottom:6px}
+  .login-right p{color:var(--muted);font-size:13.5px;line-height:1.55;margin-bottom:26px;max-width:300px}
+  #gBtn{display:flex;justify-content:center}
+  .login-err{color:var(--danger);font-size:13px;margin-top:16px;display:none}
+  .login-right .note{margin-top:18px;font-size:11.5px;color:#9aa0a6}
+
+  @media (max-width:760px){
+    .login-card{flex-direction:column}
+    .login-left{padding:36px 30px}
+  }
+
+  /* ---------- App shell ---------- */
+  #app{display:none;flex-direction:column;min-height:100vh}
+  header{background:var(--card);padding:0 20px;display:flex;align-items:center;gap:14px;height:52px;position:sticky;top:0;z-index:10;
+    box-shadow:0 1px 8px rgba(30,34,53,.05)}
+  .head-info{font-size:12.5px;color:var(--muted);border-left:1px solid var(--border);padding-left:14px;letter-spacing:.2px}
+  .accent-strip{height:4px;background:linear-gradient(90deg,#4437B8 0%,#e0529c 32%,#ffce3d 62%,#2dd4bf 100%)}
+  .logo-chip{display:flex;align-items:center}
+  .logo-chip img{height:26px;width:auto;display:block}
+  header .title{font-weight:800;font-size:16px;letter-spacing:-.2px}
+  header .title small{display:block;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.6px}
+  header .spacer{flex:1}
+  .role-chip{display:none}
+  .user-box{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+  .user-box img{width:32px;height:32px;border-radius:50%;border:2px solid #d8d2f7}
+  .btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:6px 14px;border-radius:10px;font-size:13px;cursor:pointer;transition:all .15s}
+  .btn:hover{background:var(--bg);border-color:#c6befc}
+
+  nav{display:none}
+
+  .owner-bar{display:none;align-items:center;gap:8px;padding:9px 24px;background:linear-gradient(90deg,#fff7e6,#fff2f8);border-bottom:1px solid #f0e0bb;font-size:13px}
+  .owner-bar input{border:1px solid var(--border);border-radius:10px;padding:6px 12px;font-size:13px;min-width:280px}
+
+  .scope-bar{display:none}
+  #emailList{display:none}
+
+  main{flex:1;display:flex;flex-direction:column;padding:0}
+  .frame-wrap{width:100%;flex:1;background:#fff;overflow:hidden}
+  .frame-wrap iframe{width:100%;border:none;display:block;height:75vh}
+
+  .state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;text-align:center;gap:12px}
+  .state h2{font-size:18px}
+  .state p{color:var(--muted);font-size:14px;max-width:480px}
+  .spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- ================================================================
+  CONFIGURATION — edit everything in this block, nothing else needed
+================================================================= -->
+<script>
+const CONFIG = {
+
+  // 1. Google OAuth Client ID
+  GOOGLE_CLIENT_ID: "715566670321-cpaa89flvddbnp4ams4icel9un4dt8fm.apps.googleusercontent.com",
+
+  // 2. Published Google Sheet CSV URL (CS mapping)
+  SHEET_CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzwkEJMeoEt1t1cGlXVo8oeeTU5eL5pNmb-JIIqf5ax9Z1G7hZzM698WT14R4rQVgcjecWUDhPMPHT/pub?gid=0&single=true&output=csv",
+
+  // 3. Column headers in the mapping sheet (case-insensitive)
+  COLUMNS: {
+    spocEmail:    "CS SPOC Email",
+    managerEmail: "CS Manager Email",
+    headEmail:    "CS Head Email"
+  },
+
+  // 4. Zoho Analytics dashboard key (encoded — not stored in plain text)
+  DASHBOARD_KEY: "aHR0cHM6Ly9hbmFseXRpY3Muem9oby5pbi9vcGVuLXZpZXcvNDQ2Mzk5MDAwMDE1NDEwMzI3",
+
+  // 5. Email filter columns in the Zoho dashboard, per role
+  ZOHO_FILTER_COLUMNS: {
+    spoc:    "CS SPOC Email",
+    manager: "CS Manager Email",
+    head:    "CS Head Email"
+  },
+
+  // Table behind the dashboard filters (fully qualifies the criteria)
+  ZOHO_TABLE_NAME: "CS live mapping",
+
+  // 6. Full-access users — always see the entire dashboard, no email filter
+  ADMIN_EMAILS: [
+    "ajay.g@meritto.com",
+    "eshita.garg@meritto.com",
+    "alok.sharma@meritto.com",
+    "dheeraj.raj@meritto.com"
+  ],
+
+  // 7. Owner(s) — get a "Test as" box to preview the dashboard as any user
+  OWNER_EMAILS: [
+    "eshita.garg@meritto.com"
+  ],
+
+  // 8. Usage analytics — Google Apps Script Web App URL that writes to your
+  //    Google Sheet ("Usage Log" tab). Leave "" to disable tracking.
+  ANALYTICS_URL: "PASTE_APPS_SCRIPT_WEB_APP_URL"
+};
+
+const MERITTO_LOGO = "data:image/png;base64,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";
+</script>
+<!-- ============================================================ -->
+
+<!-- Login -->
+<div id="loginScreen">
+  <div class="tint t1"></div><div class="tint t2"></div><div class="tint t3"></div>
+  <div class="login-card">
+    <div class="login-left">
+      <div class="glow g1"></div><div class="glow g2"></div>
+      <div class="inner">
+        <img class="logo" alt="Meritto">
+        <h1>Happy customers<br>leave a <span class="hl">data trail.</span></h1>
+        <p>Follow it here — every institute, every user,<br>every change that's happened so far.</p>
+      </div>
+      <div class="foot">MERITTO · FORMERLY NOPAPERFORMS</div>
+    </div>
+    <div class="login-right">
+      <div class="logo-dot">CS</div>
+      <h1>Meritto Adoption<br><span style="font-size:15px;font-weight:600;color:var(--muted)">(Company View)</span></h1>
+      <p>Sign in with your work Google account to view your mapped institutes.</p>
+      <div id="gBtn"></div>
+      <div class="login-err" id="loginErr"></div>
+      <div class="note">@meritto.com accounts only</div>
+    </div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <div class="logo-chip"><img alt="Meritto"></div>
+    <span class="head-info">Users, METS &amp; MIO Voice view integrated</span>
+    <span class="role-chip" id="roleChip"></span>
+    <span class="spacer"></span>
+    <div class="user-box">
+      <img id="userPic" alt="">
+      <span id="userGreet"></span>
+    </div>
+    <button class="btn" onclick="signOut()">Sign out</button>
+  </header>
+  <div class="accent-strip"></div>
+
+  <div class="owner-bar" id="ownerBar">
+    <span><b>Owner test mode</b> — view as:</span>
+    <input id="viewAsInput" list="allEmails" placeholder="type or pick any email">
+    <datalist id="allEmails"></datalist>
+    <button class="btn" onclick="applyViewAs()">View</button>
+    <button class="btn" onclick="resetView()">Back to my view</button>
+  </div>
+
+  <div class="scope-bar" id="scopeBar"></div>
+
+  <nav id="tabNav"></nav>
+
+  <main id="mainArea">
+    <div class="state"><div class="spinner"></div><p>Warming up your dashboard… ☕</p></div>
+  </main>
+</div>
+
+<script>
+const MERITTO_LOGO_DARK = "data:image/png;base64,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";
+document.querySelectorAll("img.logo").forEach(i => i.src = MERITTO_LOGO);
+document.querySelectorAll(".logo-chip img").forEach(i => i.src = MERITTO_LOGO_DARK);
+
+/* ================= Google Sign-In ================= */
+let currentUser = null;
+
+window.onload = () => {
+  google.accounts.id.initialize({
+    client_id: CONFIG.GOOGLE_CLIENT_ID,
+    callback: onCredential,
+    auto_select: true
+  });
+  google.accounts.id.renderButton(document.getElementById("gBtn"),
+    { theme: "outline", size: "large", width: 280, text: "signin_with" });
+};
+
+function decodeJwt(token){
+  const part = token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+  return JSON.parse(decodeURIComponent(escape(atob(part))));
+}
+
+function onCredential(resp){
+  try {
+    const p = decodeJwt(resp.credential);
+    currentUser = { email: (p.email||"").toLowerCase().trim(), name: p.name||"", pic: p.picture||"" };
+    startApp();
+  } catch(e){
+    showLoginError("Could not read Google credentials. Please try again.");
+  }
+}
+
+function signOut(){
+  sendDuration();
+  google.accounts.id.disableAutoSelect();
+  location.reload();
+}
+
+function showLoginError(msg){
+  const el = document.getElementById("loginErr");
+  el.textContent = msg; el.style.display = "block";
+}
+
+/* ================= Mapping sheet ================= */
+function parseCSV(text){
+  const rows = []; let row = [], field = "", inQ = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (inQ){
+      if (c === '"'){ if (text[i+1] === '"'){ field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ","){ row.push(field); field = ""; }
+      else if (c === "\n" || c === "\r"){
+        if (c === "\r" && text[i+1] === "\n") i++;
+        row.push(field); field = "";
+        if (row.some(v => v.trim() !== "")) rows.push(row);
+        row = [];
+      }
+      else field += c;
+    }
+  }
+  row.push(field);
+  if (row.some(v => v.trim() !== "")) rows.push(row);
+  return rows;
+}
+
+async function fetchMapping(){
+  const res = await fetch(CONFIG.SHEET_CSV_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error("Sheet fetch failed (" + res.status + ")");
+  const rows = parseCSV(await res.text());
+  if (rows.length < 2) throw new Error("Mapping sheet appears to be empty.");
+  const headers = rows[0].map(h => h.trim().toLowerCase());
+  const col = name => headers.indexOf(name.trim().toLowerCase());
+  const idx = {
+    spoc:    col(CONFIG.COLUMNS.spocEmail),
+    manager: col(CONFIG.COLUMNS.managerEmail),
+    head:    col(CONFIG.COLUMNS.headEmail)
+  };
+  const missing = Object.entries(idx).filter(([,v]) => v === -1).map(([k]) => CONFIG.COLUMNS[k + "Email"] || k);
+  if (missing.length) throw new Error("Column(s) not found in sheet: " + missing.join(", "));
+  return rows.slice(1).map(r => ({
+    spoc:    (r[idx.spoc]    || "").toLowerCase().trim(),
+    manager: (r[idx.manager] || "").toLowerCase().trim(),
+    head:    (r[idx.head]    || "").toLowerCase().trim()
+  }));
+}
+
+/* ================= Hierarchy resolution ================= */
+function resolveAccess(email, rows){
+  const roles = [];
+  const visible = new Set([email]);
+
+  rows.forEach(r => {
+    if (r.head === email){ if (r.manager) visible.add(r.manager); if (r.spoc) visible.add(r.spoc); }
+    if (r.manager === email){ if (r.spoc) visible.add(r.spoc); }
+  });
+  if (rows.some(r => r.head === email))    roles.push("head");
+  if (rows.some(r => r.manager === email)) roles.push("manager");
+  if (rows.some(r => r.spoc === email))    roles.push("spoc");
+
+  if (!roles.length) return null;
+  const label = roles.includes("head") ? "CS Head" : roles.includes("manager") ? "CS Manager" : "CS SPOC";
+  return { role: label, roles, emails: [...visible] };
+}
+
+/* ================= Zoho embed ================= */
+function colRef(col){
+  return (CONFIG.ZOHO_TABLE_NAME ? '"' + CONFIG.ZOHO_TABLE_NAME + '".' : "") + '"' + col + '"';
+}
+
+function dashBase(){ return atob(CONFIG.DASHBOARD_KEY); }
+
+function buildDashboardUrl(roles, email){
+  const safe = email.replace(/'/g, "''");
+  const parts = roles.map(r => "(" + colRef(CONFIG.ZOHO_FILTER_COLUMNS[r]) + "='" + safe + "')");
+  const criteria = parts.join(" OR ");
+  const base = dashBase();
+  return base + (base.includes("?") ? "&" : "?") + "ZOHO_CRITERIA=" + encodeURIComponent(criteria);
+}
+
+/* ================= Usage analytics ================= */
+let sessionId = null, sessionStart = null, durationSent = 0;
+
+function track(payload){
+  const url = CONFIG.ANALYTICS_URL;
+  if (!url || url.indexOf("http") !== 0) return;
+  try {
+    const body = JSON.stringify(payload);
+    if (navigator.sendBeacon) navigator.sendBeacon(url, body);
+    else fetch(url, { method: "POST", mode: "no-cors", headers: {"Content-Type": "text/plain"}, body });
+  } catch(e){ }
+}
+
+function startTracking(){
+  sessionId = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  sessionStart = Date.now();
+  track({
+    action: "start",
+    sessionId,
+    date: new Date().toLocaleString("en-IN", { hour12: true }),
+    name: currentUser.name,
+    email: currentUser.email
+  });
+  setInterval(sendDuration, 120000);
+  window.addEventListener("pagehide", sendDuration);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") sendDuration();
+  });
+}
+
+function sendDuration(){
+  if (!sessionId) return;
+  const mins = Math.round((Date.now() - sessionStart) / 6000) / 10;
+  if (mins === durationSent) return;
+  durationSent = mins;
+  track({ action: "end", sessionId, minutes: mins });
+}
+
+/* ================= App flow ================= */
+let mappingRows = [];
+
+function isAdmin(e){ return CONFIG.ADMIN_EMAILS.some(a => a.toLowerCase().trim() === e); }
+function isOwner(e){ return CONFIG.OWNER_EMAILS.some(a => a.toLowerCase().trim() === e); }
+
+async function startApp(){
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  const firstName = (currentUser.name || currentUser.email).split(" ")[0];
+  document.getElementById("userGreet").innerHTML = "Hey <b>" + firstName + "</b>! ☀️";
+  document.getElementById("userPic").src = currentUser.pic;
+
+  startTracking();
+
+  try {
+    mappingRows = await fetchMapping();
+  } catch(e){
+    document.getElementById("mainArea").innerHTML =
+      '<div class="state"><h2>Could not load access mapping</h2><p>' + e.message +
+      "</p><p>Check that the Google Sheet is published to the web as CSV and the URL in CONFIG is correct.</p></div>";
+    return;
+  }
+
+  if (isOwner(currentUser.email)) setupOwnerBar();
+  applyView(currentUser.email);
+}
+
+/* Owner "test as anyone" mode */
+function setupOwnerBar(){
+  document.getElementById("ownerBar").style.display = "flex";
+  const emails = new Set(CONFIG.ADMIN_EMAILS.map(e => e.toLowerCase().trim()));
+  mappingRows.forEach(r => { if (r.spoc) emails.add(r.spoc); if (r.manager) emails.add(r.manager); if (r.head) emails.add(r.head); });
+  document.getElementById("allEmails").innerHTML =
+    [...emails].sort().map(e => '<option value="' + e + '">').join("");
+  document.getElementById("viewAsInput").addEventListener("keydown", ev => { if (ev.key === "Enter") applyViewAs(); });
+}
+
+function applyViewAs(){
+  const v = document.getElementById("viewAsInput").value.toLowerCase().trim();
+  if (v) applyView(v);
+}
+
+function resetView(){
+  document.getElementById("viewAsInput").value = "";
+  applyView(currentUser.email);
+}
+
+/* Render the dashboard as the given email sees it */
+function applyView(email){
+  email = email.toLowerCase().trim();
+  const testing = email !== currentUser.email;
+  const chip = document.getElementById("roleChip");
+  const scope = document.getElementById("scopeBar");
+  const tag = testing ? ' &nbsp;·&nbsp; <b style="color:var(--danger)">TESTING AS: ' + email + "</b>" : "";
+
+  if (isAdmin(email)){
+    chip.textContent = "Full Access";
+    scope.innerHTML = "🔓 Full dashboard access — no email filter applied" + tag;
+    renderFrame(dashBase());
+    return;
+  }
+
+  const access = resolveAccess(email, mappingRows);
+  if (!access){
+    chip.textContent = "No access";
+    scope.innerHTML = "<b>" + email + "</b> is not in the CS mapping sheet." + tag;
+    document.getElementById("mainArea").innerHTML =
+      '<div class="state"><h2>Hmm, we couldn\'t find you 🤔</h2><p><b>' + email +
+      "</b> isn't in the CS mapping sheet yet. Ping your admin to get mapped — it takes a minute!</p></div>";
+    return;
+  }
+
+  chip.textContent = access.role;
+  scope.innerHTML =
+    '👀 Viewing data for <b>' + access.emails.length + '</b> mapped ID' + (access.emails.length > 1 ? "s" : "") +
+    ' &nbsp;·&nbsp; <a onclick="toggleEmails()">show/hide list</a>' + tag +
+    '<div id="emailList">' + access.emails.join(" &nbsp;•&nbsp; ") + "</div>";
+  renderFrame(buildDashboardUrl(access.roles, email));
+}
+
+function toggleEmails(){
+  const el = document.getElementById("emailList");
+  el.style.display = el.style.display === "block" ? "none" : "block";
+}
+
+function renderFrame(src){
+  const main = document.getElementById("mainArea");
+  main.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "frame-wrap";
+  const iframe = document.createElement("iframe");
+  iframe.id = "dashFrame";
+  iframe.src = src;
+  wrap.appendChild(iframe);
+  main.appendChild(wrap);
+  sizeFrame();
+}
+
+function sizeFrame(){
+  const iframe = document.getElementById("dashFrame");
+  if (!iframe) return;
+  const top = iframe.getBoundingClientRect().top;
+  iframe.style.height = Math.max(500, window.innerHeight - top) + "px";
+}
+window.addEventListener("resize", sizeFrame);
+</script>
+</body>
+</html>
