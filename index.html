@@ -269,7 +269,7 @@ window.onload = () => {
   google.accounts.id.initialize({
     client_id: CONFIG.GOOGLE_CLIENT_ID,
     callback: onCredential,
-    auto_select: true
+    auto_select: false
   });
   google.accounts.id.renderButton(document.getElementById("gBtn"),
     { theme: "outline", size: "large", width: 260, text: "signin_with" });
