@@ -98,6 +98,9 @@
   @keyframes spin{to{transform:rotate(360deg)}}
 .head-title{ font-size:17px; font-weight:800; color:#26215c; letter-spacing:-.01em; margin-left:2px; white-space:nowrap; }
 .head-title + .head-info{ margin-left:0; }
+.insights-bar{display:flex;align-items:center;gap:10px;padding:8px 20px;background:var(--bg);border-bottom:1px solid var(--border)}
+.insights-btn{border:1px solid var(--brand);background:#f2f0ff;color:var(--brand);padding:5px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.insights-btn:hover{background:#e8e4ff}
 </style>
 </head>
 <body>
@@ -213,7 +216,12 @@ const CONFIG = {
     "Product adoption (older version)": {
       key: "aHR0cHM6Ly9hcHAucG93ZXJiaS5jb20vcmVwb3J0RW1iZWQ/cmVwb3J0SWQ9NjVmZDYxNjAtOGQ2NC00OTdjLThmY2MtZjFlYmMzYmMxY2FiJmF1dG9BdXRoPXRydWUmY3RpZD01M2JhNmQ2Ni00OWE3LTQ1MTAtYmI4Yi00NDUxMWRjNmZlY2I="
     }
-  }
+  },
+
+  // Insights page (insights.html in this same repo). The "Insights" button shows on these tabs only,
+  // and for now only to OWNER_EMAILS. It opens the page with ?dashboard=<tab>&viewer=<email>&key=<shared key>.
+  INSIGHTS_PAGE_URL: "insights.html",
+  INSIGHTS_TABS: ["users"]
 };
 </script>
 <!-- ============================================================ -->
@@ -651,6 +659,7 @@ function track(payload){
 
 // Label of whatever the person is looking at right now (tab + Product Adoption inner tab).
 function currentTabLabel_(){
+  if (insightsOpen) return "Insights - " + (TAB_LABELS_[currentTab] || String(currentTab || ""));
   if (currentTab === "pa") return "Product Adoption - " + (currentPaTab || "");
   if (currentTab === "audit") return "Audit - " + (currentAuditTab || "");
   return TAB_LABELS_[currentTab] || String(currentTab || "");
@@ -729,6 +738,7 @@ let currentPaTab = null; // which Product Adoption inner tab is active, when cur
 let userAccess = null; // resolveUserAccess() result for the signed-in user (the owner's OWN access)
 let effectiveAccess = null; // whichever access set is currently driving the UI — userAccess normally,
                              // or a simulated person's access while owner test mode is active
+let insightsOpen = false;   // true while the Insights page of the current tab is shown
 const TAB_LABELS_ = { users: "Users", mets: "METS", mio: "MIO", pa: "Product Adoption", plat: "Platform Adoption", roadmap: "R&D Roadmap", tickets: "Tickets", nps: "NPS", audit: "Audit" };
 
 const VIEW_KEY_ = "meritto_pulse_view";
@@ -926,6 +936,7 @@ async function startApp(){
 
 function switchTab(tab){
   currentTab = tab;
+  insightsOpen = false;
   saveView_();
   ["users", "mets", "mio", "pa", "plat", "roadmap", "tickets", "nps", "audit"].forEach(t => {
     const btn = document.getElementById("subtab" + t.charAt(0).toUpperCase() + t.slice(1));
@@ -1038,6 +1049,43 @@ function renderFrame(src){
   const iframe = document.createElement("iframe");
   iframe.id = "dashFrame";
   iframe.src = src;
+  wrap.appendChild(iframe);
+  if (canShowInsights_()) main.appendChild(insightsBar_("✨ Insights", openInsights_));
+  main.appendChild(wrap);
+  sizeFrame();
+}
+
+/* ================= Insights (owner-only for now) ================= */
+function viewingEmail_(){
+  const vi = document.getElementById("viewAsInput");
+  return ((vi && vi.value.trim()) ? vi.value : currentUser.email).toLowerCase().trim();
+}
+function canShowInsights_(){
+  return isOwner(currentUser.email) && (CONFIG.INSIGHTS_TABS || []).indexOf(currentTab) !== -1;
+}
+function insightsBar_(label, onClick){
+  const bar = document.createElement("div");
+  bar.className = "insights-bar";
+  const btn = document.createElement("button");
+  btn.className = "insights-btn";
+  btn.textContent = label;
+  btn.onclick = onClick;
+  bar.appendChild(btn);
+  return bar;
+}
+function openInsights_(){
+  insightsOpen = true;
+  const url = CONFIG.INSIGHTS_PAGE_URL + "?dashboard=" + encodeURIComponent(currentTab) +
+    "&viewer=" + encodeURIComponent(viewingEmail_()) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY);
+  const main = document.getElementById("mainArea");
+  main.innerHTML = "";
+  main.appendChild(insightsBar_("← Back to " + (TAB_LABELS_[currentTab] || "dashboard"), () => switchTab(currentTab)));
+  const wrap = document.createElement("div");
+  wrap.className = "frame-wrap";
+  const iframe = document.createElement("iframe");
+  iframe.id = "dashFrame";
+  iframe.setAttribute("allow", "clipboard-write");
+  iframe.src = url;
   wrap.appendChild(iframe);
   main.appendChild(wrap);
   sizeFrame();

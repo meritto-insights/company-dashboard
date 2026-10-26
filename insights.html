@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulse Insights</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#0d1b3f; --brand:#4437B8; --brand-soft:#f2f0ff; --bg:#f6f7fb; --card:#ffffff;
+    --text:#1e2235; --muted:#6b7188; --border:#e3e5ef;
+    --series-now:#4437B8; --series-ly:#C2671A;
+    /* health tags: background / ink */
+    --red-bg:#fdecec; --red:#b42318; --amber-bg:#fff4e5; --amber:#a15c07; --blue-bg:#eaf2ff; --blue:#1d4ed8;
+    --green-bg:#e8f7ef; --green:#137a46; --grey-bg:#f0f1f5; --grey:#4b5163; --purple-bg:#f3ecff; --purple:#6b3fb8;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 48px}
+  .topline{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .topline h1{font-size:20px;font-weight:800;color:#26215c;letter-spacing:-.01em}
+  .chip{font-size:12px;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:999px;padding:3px 10px}
+  .spacer{flex:1}
+  .btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:6px 14px;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn:hover{border-color:#c6befc;background:#fbfaff}
+  .sample{background:#fff7e6;border:1px solid #f0e0bb;color:#7a5a12;border-radius:10px;padding:8px 12px;font-size:12.5px;margin-bottom:14px}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:18px}
+  .section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+
+  /* Headline + numbers row */
+  .hero{background:var(--navy);color:#fff;border-radius:14px;padding:14px 18px 12px;margin-bottom:18px}
+  .hero .eyebrow{font-size:15px;font-weight:700;color:#fff;margin-bottom:8px}
+  .headline{font-size:18px;font-weight:700;line-height:1.4;color:var(--navy);padding:0 4px 6px;max-width:900px}
+  .numbers{width:100%;border-collapse:separate;border-spacing:0;background:rgba(255,255,255,.06);border-radius:10px;overflow:hidden}
+  .numbers th{color:rgba(255,255,255,.6);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid rgba(255,255,255,.12);padding:9px 14px;text-align:left}
+  .numbers td{color:#fff;font-size:15px;font-weight:600;border-bottom:none;padding:10px 14px}
+  .numbers td small{display:block;font-size:11.5px;font-weight:400;color:rgba(255,255,255,.6)}
+  .up{color:#6ee7a8} .down{color:#ff9b8f}
+
+  /* Health table */
+  .filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;align-items:center}
+  .fchip{border:1px solid var(--border);background:var(--card);border-radius:999px;padding:4px 11px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--text)}
+  .fchip.active{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);font-weight:600}
+  .fchip b{font-weight:700}
+  .search{border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:13px;min-width:200px;font-family:inherit}
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+  th.num,td.num{text-align:right}
+  td{padding:10px;border-bottom:1px solid #eff0f5;vertical-align:top}
+  tr.row{cursor:pointer}
+  tr.row:hover td{background:#fbfaff}
+  .acct{font-weight:600}
+  .acct .caret{display:inline-block;width:14px;color:var(--muted);transition:transform .15s}
+  tr.open .caret{transform:rotate(90deg)}
+  .why{color:var(--muted)}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .t-red{background:var(--red-bg);color:var(--red)} .t-amber{background:var(--amber-bg);color:var(--amber)}
+  .t-blue{background:var(--blue-bg);color:var(--blue)} .t-green{background:var(--green-bg);color:var(--green)}
+  .t-grey{background:var(--grey-bg);color:var(--grey)} .t-purple{background:var(--purple-bg);color:var(--purple)}
+  .kq{font-size:11.5px;color:var(--red);margin-top:2px}
+  tr.people td{background:#fafbfd;padding:12px 16px 14px 34px}
+  .people-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--muted)}
+  .people-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 16px;font-size:13px}
+  .people-list .p-state{font-size:11px;color:var(--muted)}
+  .more{margin-top:12px;text-align:center}
+
+  /* Insight cards */
+  .insights{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .icard{--tone:var(--grey);--tone-bg:var(--grey-bg);display:grid;grid-template-columns:64px minmax(0,1fr) auto;
+    align-items:center;gap:14px;border:1px solid var(--border);border-left:3px solid var(--tone);border-radius:10px;padding:10px 14px}
+  .icard:hover{background:#fbfaff}
+  .tone-red{--tone:var(--red);--tone-bg:var(--red-bg)} .tone-amber{--tone:var(--amber);--tone-bg:var(--amber-bg)}
+  .tone-green{--tone:var(--green);--tone-bg:var(--green-bg)} .tone-grey{--tone:var(--grey);--tone-bg:var(--grey-bg)}
+  .istat{text-align:center;line-height:1.1}
+  .istat .big{display:block;font-size:22px;font-weight:800;color:var(--tone)}
+  .istat .unit{font-size:10.5px;color:var(--muted)}
+  .ihead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .icard h3{font-size:14.5px;font-weight:700;color:var(--navy)}
+  .lever{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tone);background:var(--tone-bg);border-radius:999px;padding:1px 7px}
+  .icard p{font-size:13px;color:#4a4f63;margin-top:1px}
+  .icard .action{font-size:12.5px;color:var(--brand);font-weight:600;margin-top:2px}
+  .icard .show{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);border:none;border-radius:8px;cursor:pointer;padding:5px 10px;font-family:inherit;white-space:nowrap}
+  .icard .show:hover{background:#e8e4ff}
+
+  /* Chart */
+  .chart-box{position:relative;height:300px}
+  .legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:18px;height:0;border-top:2px solid}
+  .sw.ly{border-top-style:dashed}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
+
+  .state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 16px;text-align:center;gap:10px;color:var(--muted)}
+  .spinner{width:30px;height:30px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media (max-width:760px){
+    .headline{font-size:16px}
+    .numbers-wrap{overflow-x:auto}
+    .icard{grid-template-columns:52px minmax(0,1fr)}
+    .icard .show{grid-column:2;justify-self:start}
+    .hide-sm{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="state"><div class="spinner"></div><p>Reading the latest data…</p></div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const CONFIG = {
+  // Apps Script web-app URL of the Insights service (Insights.gs). Paste it after deploying.
+  ENDPOINT: "https://script.google.com/macros/s/AKfycbzZ2PhbIwnRJXCey6H-ZqUaignm-CoqqKP39GVwAMH31o3OhK3dmcPsAiXqQ8b8wYQL7A/exec",
+  TITLES: { users: "Users Insights" },
+  PAGE_SIZE: 10
+};
+
+const TAG_STYLE = {
+  gone_silent:   { cls: "t-red",    label: "Gone silent" },
+  sharp_drop:    { cls: "t-amber",  label: "Sharp drop" },
+  never_started: { cls: "t-grey",   label: "Never took off" },
+  low_util:      { cls: "t-amber",  label: "Low utilisation" },
+  over_limit:    { cls: "t-blue",   label: "Over limit" },
+  strength:      { cls: "t-green",  label: "Strength" },
+  unused_seats:  { cls: "t-grey",   label: "Unused seats" },
+  data_check:    { cls: "t-purple", label: "Data check" },
+  healthy:       { cls: "t-green",  label: "Healthy" },
+  small:         { cls: "t-grey",   label: "Small account" }
+};
+// Tags shown as filter chips (healthy / small are reachable through "All")
+const FILTER_TAGS = ["gone_silent", "sharp_drop", "never_started", "low_util", "over_limit", "strength", "unused_seats", "data_check"];
+
+/* ================= PARAMS ================= */
+const qs = new URLSearchParams(location.search);
+const P = {
+  dashboard: (qs.get("dashboard") || "users").toLowerCase(),
+  viewer: qs.get("viewer") || "",
+  key: qs.get("key") || "",
+  demo: qs.get("demo") === "1" || !CONFIG.ENDPOINT
+};
+
+/* ================= HELPERS ================= */
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = n => Math.round(Number(n) || 0).toLocaleString("en-IN");
+const pct = (a, b) => b ? Math.round(a * 100 / b) : 0;
+function delta(now, then){
+  if (!then) return { txt: "—", cls: "" };
+  const d = Math.round((now / then - 1) * 100);
+  return { txt: (d > 0 ? "▲ +" : d < 0 ? "▼ −" : "") + Math.abs(d) + "%", cls: d > 0 ? "up" : d < 0 ? "down" : "" };
+}
+function pill(tag){
+  const s = TAG_STYLE[tag] || { cls: "t-grey", label: tag };
+  return '<span class="pill ' + s.cls + '"><span class="dot"></span>' + esc(s.label) + '</span>';
+}
+function api(params){
+  const u = new URL(CONFIG.ENDPOINT);
+  Object.entries(Object.assign({ dashboard: P.dashboard, viewer: P.viewer, key: P.key }, params || {}))
+    .forEach(([k, v]) => u.searchParams.set(k, v));
+  return fetch(u.toString()).then(r => r.json());
+}
+function loadDemo(){
+  return new Promise((resolve, reject) => {
+    if (window.INSIGHTS_DEMO) return resolve(window.INSIGHTS_DEMO);
+    const s = document.createElement("script");
+    s.src = "insights-demo.js";
+    s.onload = () => window.INSIGHTS_DEMO ? resolve(window.INSIGHTS_DEMO) : reject(new Error("Demo data missing"));
+    s.onerror = () => reject(new Error("insights-demo.js not found next to this page"));
+    document.head.appendChild(s);
+  });
+}
+
+/* ================= STATE ================= */
+let DATA = null;
+let filterTag = null, searchText = "", shown = CONFIG.PAGE_SIZE;
+let focusIids = null, focusLabel = "";
+const openRows = new Set();
+const peopleCache = {};
+
+/* ================= LOAD ================= */
+(async function init(){
+  const app = document.getElementById("app");
+  try {
+    if (P.dashboard !== "users") throw new Error("Insights for this dashboard are coming soon.");
+    if (!P.demo && (!P.viewer || !P.key)){
+      app.innerHTML = '<div class="state"><h2 style="color:var(--text);font-size:17px">Open Insights from Pulse 2.0</h2>' +
+        '<p>This page shows each person only their own accounts, so it needs to be opened from the dashboard: ' +
+        'Pulse 2.0 → Users → ✨ Insights.</p></div>';
+      return;
+    }
+    DATA = P.demo ? (await loadDemo()).payload : await api();
+    if (!DATA || DATA.error) throw new Error((DATA && DATA.error) || "No data");
+    render();
+  } catch(e){
+    app.innerHTML = '<div class="state"><h2 style="color:var(--text);font-size:17px">Insights unavailable</h2><p>' + esc(e.message) + '</p></div>';
+  }
+})();
+
+/* ================= RENDER ================= */
+function render(){
+  const d = DATA, k = d.kpis;
+  const vsLy = delta(k.active, k.lastYear), vsPrev = delta(k.active, k.prev);
+  const scope = d.scope.all ? "All institutes" : "Your " + d.scope.institutes + " institute" + (d.scope.institutes === 1 ? "" : "s");
+  const app = document.getElementById("app");
+  app.innerHTML =
+    (P.demo ? '<div class="sample">Preview with real ' + esc(d.month) + ' data for ' + fmt(d.scope.institutes) + ' sample accounts (the chart covers all institutes). The live version covers every account.</div>' : "") +
+    '<div class="topline">' +
+      '<h1>' + esc(CONFIG.TITLES[d.dashboard] || "Insights") + ' · ' + esc(d.month) + '</h1>' +
+      '<span class="chip">Data as of the monthly upload</span>' +
+      '<span class="chip">' + esc(scope) + '</span>' +
+      '<span class="spacer"></span>' +
+      '<button class="btn" id="copyBtn">Copy summary</button>' +
+    '</div>' +
+
+    '<div class="hero">' +
+      '<div class="eyebrow">What happened in ' + esc(d.month) + '</div>' +
+      '<div class="numbers-wrap"><table class="numbers"><thead><tr>' +
+        '<th>Seats</th><th>Enabled</th><th>Active (' + esc(d.monthShort) + ')</th><th>vs last ' + esc(d.monthShort) + '</th><th>vs ' + esc(d.prevMonth) + '</th>' +
+      '</tr></thead><tbody><tr>' +
+        '<td>' + fmt(k.seats) + '</td>' +
+        '<td>' + fmt(k.enabled) + '<small>' + pct(k.enabled, k.seats) + '% of seats</small></td>' +
+        '<td>' + fmt(k.active) + '<small>' + pct(k.active, k.seats) + '% of seats</small></td>' +
+        '<td><span class="' + vsLy.cls + '">' + vsLy.txt + '</span><small>' + fmt(k.lastYear) + ' a year ago</small></td>' +
+        '<td><span class="' + vsPrev.cls + '">' + vsPrev.txt + '</span><small>' + esc(d.seasonNote || "") + '</small></td>' +
+      '</tr></tbody></table></div>' +
+    '</div>' +
+
+    '<div class="card">' +
+      '<div class="section-title">Insights · what to act on</div>' +
+      '<div class="headline">' + esc(d.headline) + '</div>' +
+      '<div class="insights" id="insights"></div>' +
+    '</div>' +
+
+    '<div class="card" id="healthCard">' +
+      '<div class="section-title">Account health</div>' +
+      '<div class="filters" id="filters"></div>' +
+      '<div class="tbl-wrap"><table><thead><tr>' +
+        '<th>Account</th><th>Health</th><th class="hide-sm">Why</th>' +
+        '<th class="num">Seats</th><th class="num">Enabled</th><th class="num">Active</th>' +
+      '</tr></thead><tbody id="tbody"></tbody></table></div>' +
+      '<div class="more" id="more"></div>' +
+    '</div>' +
+
+    '<div class="card">' +
+      '<div class="section-title">Active users per month</div>' +
+      '<div class="legend"><span><i class="sw" style="border-color:var(--series-now)"></i>Last 12 months</span>' +
+      '<span><i class="sw ly" style="border-color:var(--series-ly)"></i>Same month a year earlier</span></div>' +
+      '<div class="chart-box"><canvas id="trend" aria-label="Active users per month, this year versus last year"></canvas></div>' +
+    '</div>' +
+    '<div class="foot">' + (d.scope.all ? "Showing every institute." : "Showing only the institutes you own as CS SPOC, Manager or Head.") + '</div>';
+
+  document.getElementById("copyBtn").onclick = copySummary;
+  renderFilters();
+  renderTable();
+  renderInsights();
+  renderChart();
+}
+
+function renderFilters(){
+  const counts = {};
+  DATA.tags.forEach(t => counts[t.tag] = t.count);
+  const el = document.getElementById("filters");
+  let html = '<button class="fchip' + (!filterTag && !focusIids ? " active" : "") + '" data-tag="">All <b>' + fmt(DATA.accounts.length) + '</b></button>';
+  FILTER_TAGS.forEach(t => {
+    if (!counts[t]) return;
+    html += '<button class="fchip' + (filterTag === t ? " active" : "") + '" data-tag="' + t + '">' + esc(TAG_STYLE[t].label) + ' <b>' + fmt(counts[t]) + '</b></button>';
+  });
+  if (focusIids) html += '<button class="fchip active" data-focus="1">' + esc(focusLabel) + ' <b>' + fmt(focusIids.size) + '</b> ✕</button>';
+  html += '<span class="spacer"></span><input class="search" id="search" placeholder="Search account" value="' + esc(searchText) + '">' +
+          '<button class="btn" id="exportBtn">⬇ Export</button>';
+  el.innerHTML = html;
+  el.querySelectorAll(".fchip").forEach(b => b.onclick = () => {
+    if (b.dataset.focus){ focusIids = null; }
+    else { filterTag = b.dataset.tag || null; focusIids = null; }
+    shown = CONFIG.PAGE_SIZE; renderFilters(); renderTable();
+  });
+  const s = document.getElementById("search");
+  s.oninput = () => { searchText = s.value; shown = CONFIG.PAGE_SIZE; renderTable(); };
+  document.getElementById("exportBtn").onclick = exportAccounts;
+}
+
+function filteredAccounts(){
+  const q = searchText.trim().toLowerCase();
+  return DATA.accounts.filter(a =>
+    (!filterTag || a.tag === filterTag) &&
+    (!focusIids || focusIids.has(a.iid)) &&
+    (!q || a.name.toLowerCase().indexOf(q) !== -1));
+}
+
+function renderTable(){
+  const list = filteredAccounts();
+  const tb = document.getElementById("tbody");
+  let html = "";
+  list.slice(0, shown).forEach(a => {
+    const open = openRows.has(a.iid);
+    html += '<tr class="row' + (open ? " open" : "") + '" data-iid="' + esc(a.iid) + '">' +
+      '<td class="acct"><span class="caret">▸</span>' + esc(a.name) +
+        (a.keyUserQuiet ? '<div class="kq">Key admin inactive</div>' : "") + '</td>' +
+      '<td>' + pill(a.tag) + '</td>' +
+      '<td class="why hide-sm">' + esc(a.why) + '</td>' +
+      '<td class="num">' + fmt(a.seats) + '</td><td class="num">' + fmt(a.enabled) + '</td><td class="num">' + fmt(a.active) + '</td></tr>';
+    if (open) html += '<tr class="people"><td colspan="6" id="ppl-' + esc(a.iid) + '">' + peopleHtml(a) + '</td></tr>';
+  });
+  if (!list.length) html = '<tr><td colspan="6" class="why" style="text-align:center;padding:24px">No accounts match.</td></tr>';
+  tb.innerHTML = html;
+  tb.querySelectorAll("tr.row").forEach(tr => tr.onclick = () => toggleRow(tr.dataset.iid));
+  tb.querySelectorAll("[data-export-people]").forEach(b => b.onclick = ev => { ev.stopPropagation(); exportPeople(b.dataset.exportPeople); });
+
+  const more = document.getElementById("more");
+  const left = list.length - shown;
+  more.innerHTML = left > 0
+    ? '<button class="btn" id="moreBtn">+ ' + fmt(left) + ' account' + (left === 1 ? "" : "s") + ' more</button>'
+    : (list.length > CONFIG.PAGE_SIZE ? '<button class="btn" id="lessBtn">Show fewer</button>' : "");
+  const mb = document.getElementById("moreBtn");
+  if (mb) mb.onclick = () => { shown = list.length; renderTable(); };
+  const lb = document.getElementById("lessBtn");
+  if (lb) lb.onclick = () => { shown = CONFIG.PAGE_SIZE; renderTable(); document.getElementById("healthCard").scrollIntoView({ block: "start" }); };
+}
+
+function peopleHtml(a){
+  const p = peopleCache[a.iid];
+  if (p === undefined) return '<span class="why">Loading users…</span>';
+  if (p === null) return '<span class="why">Could not load users.</span>';
+  if (p === "demo-missing") return '<span class="why">In this preview, user lists are loaded only for Great Lakes PGDM and LCIT. The live version loads them for every account.</span>';
+  if (!p.length) return '<span class="why">No idle or dormant users. Everyone licensed was active.</span>';
+  const idle = p.filter(x => x.state === "idle").length, dormant = p.length - idle;
+  return '<div class="people-head"><b style="color:var(--text)">' + fmt(idle) + ' idle</b> (no activity last month) · <b style="color:var(--text)">' +
+    fmt(dormant) + ' dormant</b> (never active)<span class="spacer"></span>' +
+    '<button class="btn" data-export-people="' + esc(a.iid) + '">⬇ Export users</button></div>' +
+    '<div class="people-list">' + p.map(x => '<div>' + esc(x.name || "User " + x.uid) +
+      ' <span class="p-state">· ' + esc(x.state) + ' · ' + esc(x.uid) + '</span></div>').join("") + '</div>';
+}
+
+async function toggleRow(iid){
+  if (openRows.has(iid)){ openRows.delete(iid); renderTable(); return; }
+  openRows.add(iid);
+  renderTable();
+  if (peopleCache[iid] !== undefined) return;
+  try {
+    if (P.demo){
+      const demo = await loadDemo();
+      peopleCache[iid] = (demo.people && demo.people[iid]) || "demo-missing";
+    } else {
+      const r = await api({ action: "people", iid });
+      peopleCache[iid] = r && !r.error ? r.people : null;
+    }
+  } catch(e){ peopleCache[iid] = null; }
+  const cell = document.getElementById("ppl-" + iid);
+  if (cell){ renderTable(); }
+}
+
+function renderInsights(){
+  const el = document.getElementById("insights");
+  if (!DATA.insights.length){ el.innerHTML = '<p class="why">Nothing stands out this month.</p>'; return; }
+  el.innerHTML = DATA.insights.map((c, i) => {
+    const stat = c.stat != null ? c.stat : (c.iids || []).length;
+    return '<div class="icard tone-' + esc(c.tone) + '">' +
+      '<div class="istat"><span class="big">' + fmt(stat) + '</span><span class="unit">' + esc(c.statLabel || "accounts") + '</span></div>' +
+      '<div><div class="ihead"><h3>' + esc(c.title) + '</h3><span class="lever">' + esc(c.lever) + '</span></div>' +
+        '<p>' + esc(c.text) + '</p>' +
+        '<div class="action">→ ' + esc(c.action) + '</div></div>' +
+      (c.iids && c.iids.length ? '<button class="show" data-i="' + i + '">See accounts ↓</button>' : '<span></span>') +
+    '</div>';
+  }).join("");
+  el.querySelectorAll(".show").forEach(b => b.onclick = () => {
+    const c = DATA.insights[+b.dataset.i];
+    focusIids = new Set(c.iids); focusLabel = c.title; filterTag = null; shown = CONFIG.PAGE_SIZE;
+    renderFilters(); renderTable();
+    document.getElementById("healthCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function renderChart(){
+  const c = DATA.chart;
+  if (!window.Chart || !c) return;
+  new Chart(document.getElementById("trend"), {
+    type: "line",
+    data: {
+      labels: c.labels,
+      datasets: [
+        { label: "Last 12 months", data: c.current, borderColor: "#4437B8", backgroundColor: "#4437B8",
+          borderWidth: 2, pointRadius: 4, pointHoverRadius: 6, tension: 0.25 },
+        { label: "Same month a year earlier", data: c.lastYear, borderColor: "#C2671A", backgroundColor: "#C2671A",
+          borderWidth: 2, borderDash: [6, 4], pointRadius: 4, pointHoverRadius: 6, pointStyle: "rectRot", tension: 0.25 }
+      ]
+    },
+    options: {
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => " " + ctx.dataset.label + ": " + fmt(ctx.parsed.y) + " active users" } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: "#6b7188" } },
+        y: { beginAtZero: true, grid: { color: "#eff0f5" }, border: { display: false },
+             ticks: { color: "#6b7188", callback: v => fmt(v) } }
+      }
+    }
+  });
+}
+
+/* ================= EXPORT / SHARE ================= */
+function csvCell(v){ const s = String(v == null ? "" : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+function download(name, rows){
+  const blob = new Blob(["﻿" + rows.map(r => r.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function exportAccounts(){
+  const rows = [["Institute ID", "Account", "Health", "Why", "Seats", "Enabled", "Active", "Idle users", "Dormant users", "Key admin inactive"]];
+  filteredAccounts().forEach(a => rows.push([a.iid, a.name, (TAG_STYLE[a.tag] || {}).label || a.tag, a.why, a.seats, a.enabled, a.active, a.idle, a.dormant, a.keyUserQuiet ? "Yes" : ""]));
+  download("users-insights-" + DATA.month.replace(/\s+/g, "-") + ".csv", rows);
+}
+function exportPeople(iid){
+  const a = DATA.accounts.find(x => x.iid === iid);
+  const rows = [["Institute ID", "Account", "User ID", "User name", "State"]];
+  (Array.isArray(peopleCache[iid]) ? peopleCache[iid] : []).forEach(p => rows.push([iid, a ? a.name : "", p.uid, p.name, p.state]));
+  download("idle-users-" + iid + ".csv", rows);
+}
+function copySummary(){
+  const d = DATA;
+  const text = d.headline + "\n\n" + d.insights.map(c => "• " + c.title + ": " + c.text + " → " + c.action).join("\n") +
+    "\n\n(Pulse 2.0 · " + d.month + ")";
+  const done = () => { const b = document.getElementById("copyBtn"); b.textContent = "Copied ✓"; setTimeout(() => b.textContent = "Copy summary", 1800); };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done){
+  const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select();
+  try { document.execCommand("copy"); done(); } catch(e){}
+  t.remove();
+}
+</script>
+</body>
+</html>
