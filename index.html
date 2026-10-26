@@ -1061,7 +1061,8 @@ function viewingEmail_(){
   return ((vi && vi.value.trim()) ? vi.value : currentUser.email).toLowerCase().trim();
 }
 function canShowInsights_(){
-  return isOwner(currentUser.email) && (CONFIG.INSIGHTS_TABS || []).indexOf(currentTab) !== -1;
+  // Checks the person being viewed, so test mode shows exactly what they would see
+  return isOwner(viewingEmail_()) && (CONFIG.INSIGHTS_TABS || []).indexOf(currentTab) !== -1;
 }
 function insightsBar_(label, onClick){
   const bar = document.createElement("div");
