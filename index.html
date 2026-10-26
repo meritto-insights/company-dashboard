@@ -1076,7 +1076,7 @@ function insightsBar_(label, onClick){
 function openInsights_(){
   insightsOpen = true;
   const url = CONFIG.INSIGHTS_PAGE_URL + "?dashboard=" + encodeURIComponent(currentTab) +
-    "&viewer=" + encodeURIComponent(viewingEmail_()) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY);
+    "&viewer=" + encodeURIComponent(viewingEmail_()) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY) + "&v=" + Date.now(); // v = always load the newest insights page
   const main = document.getElementById("mainArea");
   main.innerHTML = "";
   main.appendChild(insightsBar_("← Back to " + (TAB_LABELS_[currentTab] || "dashboard"), () => switchTab(currentTab)));
