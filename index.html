@@ -106,6 +106,17 @@
 .insights-teaser .it-text.loading{color:var(--muted);font-weight:500}
 .insights-teaser .it-link{border:none;background:var(--brand);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;padding:5px 14px;border-radius:999px}
 .insights-teaser .it-link:hover{filter:brightness(1.1)}
+/* Tab with a Dashboard | Insights menu: opens on hover, or on a click of the ▾ (touch screens) */
+.tab-menu{position:relative;display:inline-flex}
+.tab-menu .tm-caret{margin-left:6px;padding:0 2px;font-size:13px}
+.tab-dd{display:none;position:absolute;top:100%;left:0;z-index:60;padding-top:6px}
+.tab-menu:not(.hold):hover .tab-dd,.tab-menu.open .tab-dd{display:block}
+.tab-dd .tm-box{background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(13,27,63,.14);padding:6px;min-width:220px}
+.tab-dd .tm-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;font-size:13px;font-weight:600;color:#26215c;cursor:pointer;white-space:nowrap}
+.tab-dd .tm-item:hover{background:#f2f0ff}
+.tab-dd .tm-item.on{color:var(--brand)}
+.tab-dd .tm-badge{margin-left:auto;background:#fde8e8;color:#b42318;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
+.tab-dd .tm-tick{margin-left:auto;color:var(--brand)}
 /* Zoho's own header (dashboard title + Zoho "Insights" button) is cropped off so the story strip sits right on the dashboard */
 .frame-wrap.crop-zoho-head iframe{margin-top:-44px}
 </style>
@@ -775,7 +786,7 @@ function renderTabsRow_(tabs){
     btn.id = "subtab" + t.charAt(0).toUpperCase() + t.slice(1);
     btn.textContent = TAB_LABELS_[t];
     btn.onclick = () => switchTab(t);
-    row.appendChild(btn);
+    row.appendChild(tabHasInsights_(t) ? tabMenu_(t, btn) : btn);
   });
   if (isOwner(currentUser.email)){
     const accessBtn = document.createElement("button");
@@ -950,6 +961,7 @@ function switchTab(tab){
     const btn = document.getElementById("subtab" + t.charAt(0).toUpperCase() + t.slice(1));
     if (btn) btn.classList.toggle("active", t === tab);
   });
+  updateTabMenus_();
 
   const email = document.getElementById("viewAsInput") && document.getElementById("viewAsInput").value.trim()
     ? document.getElementById("viewAsInput").value.toLowerCase().trim()
@@ -1071,9 +1083,94 @@ function viewingEmail_(){
   const vi = document.getElementById("viewAsInput");
   return ((vi && vi.value.trim()) ? vi.value : currentUser.email).toLowerCase().trim();
 }
-function canShowInsights_(){
-  // Checks the person being viewed, so test mode shows exactly what they would see
-  return isOwner(viewingEmail_()) && (CONFIG.INSIGHTS_TABS || []).indexOf(currentTab) !== -1;
+// Checks the person being viewed, so test mode shows exactly what they would see
+function tabHasInsights_(tab){
+  return isOwner(viewingEmail_()) && (CONFIG.INSIGHTS_TABS || []).indexOf(tab) !== -1;
+}
+function canShowInsights_(){ return tabHasInsights_(currentTab); }
+
+/* Tab button wrapped with a Dashboard | Insights menu */
+function tabMenu_(tab, btn){
+  const wrap = document.createElement("span");
+  wrap.className = "tab-menu";
+  wrap.dataset.tab = tab;
+  const caret = document.createElement("span");
+  caret.className = "tm-caret";
+  caret.textContent = "▾";
+  caret.onclick = ev => { ev.stopPropagation(); wrap.classList.remove("hold"); wrap.classList.toggle("open"); };
+  btn.appendChild(caret);
+
+  const dd = document.createElement("div");
+  dd.className = "tab-dd";
+  const box = document.createElement("div");
+  box.className = "tm-box";
+  const item = (cls, icon, label, onClick) => {
+    const it = document.createElement("div");
+    it.className = "tm-item " + cls;
+    it.innerHTML = '<span>' + icon + '</span><span>' + label + '</span><span class="tm-badge" hidden></span><span class="tm-tick" hidden>✓</span>';
+    it.onclick = ev => { ev.stopPropagation(); wrap.classList.remove("open"); wrap.classList.add("hold"); onClick(); };
+    return it;
+  };
+  box.appendChild(item("tm-dash", "📊", "Dashboard", () => switchTab(tab)));
+  box.appendChild(item("tm-ins", "✨", "Insights", () => openTabInsights_(tab)));
+  dd.appendChild(box);
+  wrap.appendChild(btn);
+  wrap.appendChild(dd);
+  wrap.addEventListener("mouseleave", () => wrap.classList.remove("hold")); // after a pick, stay shut until the mouse leaves
+
+  // Alert count on the Insights line, from the same cached summary the story strip uses
+  insightsSummary_(tab).then(d => {
+    const b = wrap.querySelector(".tm-ins .tm-badge");
+    if (b && d && d.attention) { b.textContent = d.attention + " alert" + (d.attention === 1 ? "" : "s"); b.hidden = false; }
+  });
+  return wrap;
+}
+
+// Ticks the current view in each menu and renames the active tab "Users · Insights" while Insights is open
+function updateTabMenus_(){
+  document.querySelectorAll(".tab-menu").forEach(w => {
+    const t = w.dataset.tab, here = t === currentTab;
+    w.querySelector(".tm-dash .tm-tick").hidden = !(here && !insightsOpen);
+    w.querySelector(".tm-ins .tm-tick").hidden = !(here && insightsOpen);
+    w.querySelector(".tm-dash").classList.toggle("on", here && !insightsOpen);
+    w.querySelector(".tm-ins").classList.toggle("on", here && insightsOpen);
+    const btn = w.querySelector("button");
+    btn.firstChild.textContent = TAB_LABELS_[t] + (here && insightsOpen ? " · Insights" : "");
+  });
+}
+document.addEventListener("click", () => document.querySelectorAll(".tab-menu.open").forEach(w => w.classList.remove("open")));
+
+function openTabInsights_(tab){
+  if (currentTab !== tab){
+    currentTab = tab;
+    saveView_();
+    ["users", "mets", "mio", "pa", "plat", "roadmap", "tickets", "nps", "audit"].forEach(t => {
+      const b = document.getElementById("subtab" + t.charAt(0).toUpperCase() + t.slice(1));
+      if (b) b.classList.toggle("active", t === tab);
+    });
+  }
+  openInsights_();
+}
+
+// This month's one-line summary for a tab, as the viewed person sees it. Cached for 30 min in the browser.
+function insightsSummary_(tab){
+  const viewer = viewingEmail_();
+  const ck = "insSum_" + tab + "_" + viewer;
+  try {
+    const c = JSON.parse(sessionStorage.getItem(ck) || "null");
+    if (c && Date.now() - c.t < 30 * 60 * 1000) return Promise.resolve(c.d);
+  } catch (e) {}
+  if (!insightsSummary_.inflight) insightsSummary_.inflight = {};
+  if (insightsSummary_.inflight[ck]) return insightsSummary_.inflight[ck];
+  const url = CONFIG.INSIGHTS_ENDPOINT + "?dashboard=" + encodeURIComponent(tab) + "&action=summary" +
+    "&viewer=" + encodeURIComponent(viewer) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY);
+  const p = fetch(url).then(r => r.json()).then(d => {
+    if (!d || !d.teaser) return null;
+    try { sessionStorage.setItem(ck, JSON.stringify({ t: Date.now(), d })); } catch (e) {}
+    return d;
+  }).catch(() => null).finally(() => { delete insightsSummary_.inflight[ck]; });
+  insightsSummary_.inflight[ck] = p;
+  return p;
 }
 function insightsBar_(label, onClick){
   const bar = document.createElement("div");
@@ -1101,28 +1198,18 @@ function insightsTeaser_(){
   bar.appendChild(text);
   bar.appendChild(link);
 
-  const show = d => {
+  const label = TAB_LABELS_[currentTab] || "dashboard";
+  insightsSummary_(currentTab).then(d => {
     if (!bar.isConnected || viewingEmail_() !== viewer) return;
     text.classList.remove("loading");
-    text.textContent = "✨ " + (d && d.teaser ? d.teaser : "The " + (TAB_LABELS_[currentTab] || "dashboard") + " insights are ready.");
-  };
-  const ck = "insSum_" + currentTab + "_" + viewer;
-  try {
-    const c = JSON.parse(sessionStorage.getItem(ck) || "null");
-    if (c && Date.now() - c.t < 30 * 60 * 1000) { show(c.d); return bar; }
-  } catch (e) {}
-  const url = CONFIG.INSIGHTS_ENDPOINT + "?dashboard=" + encodeURIComponent(currentTab) + "&action=summary" +
-    "&viewer=" + encodeURIComponent(viewer) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY);
-  fetch(url).then(r => r.json()).then(d => {
-    if (!d || !d.teaser) { show(null); return; }
-    try { sessionStorage.setItem(ck, JSON.stringify({ t: Date.now(), d })); } catch (e) {}
-    show(d);
-  }).catch(() => show(null));
+    text.textContent = "✨ " + (d && d.teaser ? d.teaser : "The " + label + " insights are ready.");
+  });
   return bar;
 }
 
 function openInsights_(){
   insightsOpen = true;
+  updateTabMenus_();
   const url = CONFIG.INSIGHTS_PAGE_URL + "?dashboard=" + encodeURIComponent(currentTab) +
     "&viewer=" + encodeURIComponent(viewingEmail_()) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY) + "&v=" + Date.now(); // v = always load the newest insights page
   const main = document.getElementById("mainArea");
