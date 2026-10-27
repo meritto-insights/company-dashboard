@@ -42,7 +42,7 @@
   .zones .zt{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.6);font-weight:600;margin-bottom:6px}
   .zbar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08)}
   .zbar span{display:block;height:100%}
-  .zlegend{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:7px;font-size:12.5px;color:rgba(255,255,255,.85)}
+  .zlegend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 22px;margin-top:8px;font-size:12.5px;color:rgba(255,255,255,.85)}
   .zlegend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
   .zlegend b{color:#fff}
   .zlegend small{color:rgba(255,255,255,.55);margin-left:4px}
@@ -60,21 +60,26 @@
 
   /* One line per insight */
   .lines{display:flex;flex-direction:column}
-  .line{display:grid;grid-template-columns:56px auto auto auto auto 1fr;justify-content:start;align-items:center;gap:14px;padding:9px 4px;border-top:1px solid #eff0f5}
+  .line{display:grid;grid-template-columns:56px auto auto auto 1fr;justify-content:start;align-items:center;gap:14px;padding:9px 4px;border-top:1px solid #eff0f5}
   .line:first-child{border-top:none}
   .line .cnt{font-size:20px;font-weight:800;text-align:right}
   .weak-side .cnt{color:var(--red)} .strong-side .cnt{color:var(--green)} .check-side .cnt{color:var(--purple)}
   .line .txt{font-size:14px;color:var(--text)}
-  .line .act{font-size:13px;color:var(--brand);font-weight:600;white-space:nowrap}
   .line .stake{font-size:12px;color:var(--grey);background:var(--grey-bg);border-radius:999px;padding:2px 9px;white-space:nowrap}
   .line .stake b{color:var(--text)}
-  .newb{font-size:10.5px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--brand);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
-  .side .nn{font-size:11.5px;font-weight:600;opacity:.8}
   .zp{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
   .zp i{width:8px;height:8px;border-radius:50%}
   .zp.risk i{background:#e5484d} .zp.watch i{background:#e5a00d} .zp.health i{background:#1f9d5a} .zp.expand i{background:#3b73e0}
   .rank{color:var(--muted);font-weight:700;width:28px}
-  .subnote{font-size:12px;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0;margin-left:8px}
+  /* Tips: ⓘ next to anything with a rule behind it */
+  .ti{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:10.5px;font-weight:800;font-style:normal;
+    color:var(--muted);border:1.3px solid currentColor;cursor:help;margin-left:6px;vertical-align:1px;line-height:1;user-select:none}
+  .ti:hover,.ti.on{color:var(--brand)}
+  .hero .ti{color:rgba(255,255,255,.6)} .hero .ti:hover{color:#fff}
+  [data-tip]{cursor:help}
+  #tipBox{position:fixed;z-index:100;max-width:300px;background:#1e2235;color:#fff;font-size:12.5px;line-height:1.45;border-radius:10px;padding:9px 12px;
+    box-shadow:0 10px 30px rgba(13,27,63,.25);pointer-events:none;opacity:0;transition:opacity .12s}
+  #tipBox.on{opacity:1}
   .line .see{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);border:none;border-radius:8px;cursor:pointer;padding:5px 10px;font-family:inherit;white-space:nowrap}
   .line .see:hover{background:#e8e4ff}
   .line.focus{background:#fbfaff}
@@ -102,7 +107,6 @@
   .t-blue{background:var(--blue-bg);color:var(--blue)} .t-green{background:var(--green-bg);color:var(--green)}
   .t-grey{background:var(--grey-bg);color:var(--grey)} .t-purple{background:var(--purple-bg);color:var(--purple)}
   .t-teal{background:var(--teal-bg);color:var(--teal)}
-  .kq{font-size:11.5px;color:var(--red);margin-top:2px}
   tr.people td{background:#fafbfd;padding:12px 16px 14px 34px}
   .people-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12.5px;color:var(--muted)}
   .people-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 16px;font-size:13px}
@@ -117,7 +121,7 @@
   @media (max-width:760px){
     .numbers-wrap{overflow-x:auto}
     .line{grid-template-columns:44px minmax(0,1fr);gap:4px 12px}
-    .line .act,.line .see,.line .stake{grid-column:2;justify-self:start}
+    .line .see,.line .stake{grid-column:2;justify-self:start}
     .hide-sm{display:none}
   }
 </style>
@@ -181,8 +185,26 @@ function zonesHtml(zones){
   const total = zones.reduce((s, z) => s + z.count, 0) || 1;
   return '<div class="zones"><div class="zt">Seat use across accounts</div>' +
     '<div class="zbar">' + zones.map(z => '<span class="z-' + z.id + '" style="width:' + (z.count * 100 / total) + '%" title="' + esc(z.label + ": " + z.count) + '"></span>').join("") + '</div>' +
-    '<div class="zlegend">' + zones.map(z => '<span><i class="z-' + z.id + '"></i>' + esc(z.label) + ' <b>' + fmt(z.count) + '</b><small>' + esc(z.range) + '</small></span>').join("") + '</div></div>';
+    '<div class="zlegend">' + zones.map(z => '<span' + (z.tip ? ' data-tip="' + esc(z.tip) + '"' : "") + '><i class="z-' + z.id + '"></i>' + esc(z.label) + ' <b>' + fmt(z.count) + '</b><small>' + esc(z.range) + '</small></span>').join("") + (zones[0].tip ? tipI("Each account's active users as a % of its paid seats.") : "") + '</div></div>';
 }
+// ⓘ icon with a rule behind it
+const tipI = t => '<i class="ti" tabindex="0" data-tip="' + esc(t) + '">i</i>';
+// One floating tip for the whole page: hover on desktop, tap on phones
+(function(){
+  const box = document.createElement("div"); box.id = "tipBox"; document.body.appendChild(box);
+  let cur = null;
+  const show = el => {
+    cur = el; box.textContent = el.getAttribute("data-tip"); box.classList.add("on");
+    const r = el.getBoundingClientRect(), w = Math.min(300, window.innerWidth - 24);
+    box.style.left = Math.max(12, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 12)) + "px";
+    box.style.top = (r.bottom + 8 + box.offsetHeight > window.innerHeight ? r.top - box.offsetHeight - 8 : r.bottom + 8) + "px";
+  };
+  const hide = () => { cur = null; box.classList.remove("on"); };
+  document.addEventListener("mouseover", e => { const el = e.target.closest("[data-tip]"); if (el) show(el); else if (cur) hide(); });
+  document.addEventListener("focusin", e => { const el = e.target.closest("[data-tip]"); if (el) show(el); });
+  document.addEventListener("click", e => { const el = e.target.closest("[data-tip]"); if (el) show(el); else hide(); });
+  window.addEventListener("scroll", hide, true);
+})();
 function zonePill(a){
   if (a.pct == null) return '<span class="why">—</span>';
   return '<span class="zp ' + esc(a.zone) + '" title="' + esc(ZONE_LABEL[a.zone] || "") + '"><i></i>' + a.pct + '%</span>';
@@ -191,7 +213,8 @@ function zonePill(a){
 const shownTag = a => (side === "weak" && SIDES.weak.tags.indexOf(a.tag) === -1 && a.keyUserQuiet) ? "key_user" : a.tag;
 function pill(tag){
   const s = TAG_STYLE[tag] || { cls: "t-grey", label: tag };
-  return '<span class="pill ' + s.cls + '"><span class="dot"></span>' + esc(s.label) + '</span>';
+  const t = DATA && DATA.tips && DATA.tips[tag];
+  return '<span class="pill ' + s.cls + '"' + (t ? ' data-tip="' + esc(t) + '"' : "") + '><span class="dot"></span>' + esc(s.label) + '</span>';
 }
 function api(params){
   const u = new URL(CONFIG.ENDPOINT);
@@ -277,7 +300,7 @@ function render(){
       '<div class="section-title" id="healthTitle"></div>' +
       '<div class="filters" id="filters"></div>' +
       '<div class="tbl-wrap"><table><thead><tr>' +
-        '<th class="rank">#</th><th>Account</th><th>Health</th><th class="hide-sm">Why</th><th>Seat use</th>' +
+        '<th class="rank">S.No</th><th>Institute ID</th><th>Institute name</th><th>Health</th><th class="hide-sm">Why</th><th>Seat use</th>' +
         '<th class="num">Seats</th><th class="num">Enabled</th><th class="num">Active</th>' +
       '</tr></thead><tbody id="tbody"></tbody></table></div>' +
       '<div class="more" id="more"></div>' +
@@ -294,15 +317,12 @@ function renderSide(){
   const sides = ["strong", "weak"].concat(d.counts.check ? ["check"] : []);
   document.getElementById("sides").innerHTML = sides.map(s =>
     '<button class="side ' + s + (side === s ? " on" : "") + '" data-side="' + s + '"><span class="dot"></span>' +
-    esc(SIDES[s].label) + ' <span class="n">' + fmt(d.counts[s]) + '</span>' +
-    (d.newCounts && d.newCounts[s] ? '<span class="nn">' + fmt(d.newCounts[s]) + ' new</span>' : "") + '</button>').join("");
+    esc(SIDES[s].label) + ' <span class="n">' + fmt(d.counts[s]) + '</span></button>').join("");
   document.querySelectorAll(".side").forEach(b => b.onclick = () => {
     side = b.dataset.side; filterTag = null; focus = null; searchText = ""; shown = CONFIG.PAGE_SIZE;
     renderSide();
   });
-  document.getElementById("healthTitle").innerHTML =
-    esc({ weak: "Act on these first", strong: "Grow these first", check: "Fix these first" }[side]) +
-    '<span class="subnote">ranked by size of impact · NEW = flagged for the first time this month</span>';
+  document.getElementById("healthTitle").textContent = "Institute-wise analysis";
   renderLines();
   renderFilters();
   renderTable();
@@ -316,9 +336,8 @@ function renderLines(){
   el.innerHTML = list.map((c, i) =>
     '<div class="line' + (focus && focus.id === c.id ? " focus" : "") + '">' +
       '<span class="cnt">' + fmt(c.count) + '</span>' +
-      '<span class="txt">' + esc(c.text) + (c.newCount ? '<span class="newb">' + fmt(c.newCount) + ' NEW</span>' : "") + '</span>' +
+      '<span class="txt">' + esc(c.text) + '</span>' +
       (c.stake != null ? '<span class="stake"><b>' + fmt(c.stake) + '</b> ' + esc(c.stakeLabel) + '</span>' : '<span></span>') +
-      '<span class="act">→ ' + esc(c.action) + '</span>' +
       '<button class="see" data-i="' + i + '">See ↓</button>' +
     '</div>').join("");
   el.querySelectorAll(".see").forEach(b => b.onclick = () => {
@@ -341,13 +360,14 @@ function renderFilters(){
   let html = '<button class="fchip' + (!filterTag && !focus ? " active" : "") + '" data-tag="">All <b>' + fmt(all.length) + '</b></button>';
   SIDES[side].tags.forEach(t => {
     if (!counts[t]) return;
-    html += '<button class="fchip' + (filterTag === t ? " active" : "") + '" data-tag="' + t + '">' + esc(TAG_STYLE[t].label) + ' <b>' + fmt(counts[t]) + '</b></button>';
+    html += '<button class="fchip' + (filterTag === t ? " active" : "") + '" data-tag="' + t + '">' + esc(TAG_STYLE[t].label) + ' <b>' + fmt(counts[t]) + '</b>' + (DATA.tips && DATA.tips[t] ? tipI(DATA.tips[t]) : "") + '</button>';
   });
   if (focus) html += '<button class="fchip active" data-focus="1">' + esc(TAG_STYLE[focus.id] ? TAG_STYLE[focus.id].label : "Selected") + ' <b>' + fmt(focus.iids.size) + '</b> ✕</button>';
   html += '<span class="spacer"></span><input class="search" id="search" placeholder="Search account" value="' + esc(searchText) + '">' +
           '<button class="btn" id="exportBtn">⬇ Export</button>';
   el.innerHTML = html;
-  el.querySelectorAll(".fchip").forEach(b => b.onclick = () => {
+  el.querySelectorAll(".fchip").forEach(b => b.onclick = e => {
+    if (e.target.closest(".ti")) return; // the ⓘ only explains, it does not filter
     if (b.dataset.focus){ focus = null; }
     else { filterTag = b.dataset.tag || null; focus = null; }
     shown = CONFIG.PAGE_SIZE; renderLines(); renderFilters(); renderTable();
@@ -373,16 +393,15 @@ function renderTable(){
   list.slice(0, shown).forEach((a, i) => {
     const open = openRows.has(a.iid), t = shownTag(a);
     html += '<tr class="row' + (open ? " open" : "") + '" data-iid="' + esc(a.iid) + '">' +
-      '<td class="rank">' + (i + 1) + '</td>' +
-      '<td class="acct"><span class="caret">▸</span>' + esc(a.name) + (a.isNew ? '<span class="newb">NEW</span>' : "") +
-        (a.keyUserQuiet && t !== "key_user" ? '<div class="kq">Regular admin inactive</div>' : "") + '</td>' +
+      '<td class="rank">' + (i + 1) + '</td><td class="why">' + esc(a.iid) + '</td>' +
+      '<td class="acct"><span class="caret">▸</span>' + esc(a.name) + '</td>' +
       '<td>' + pill(t) + '</td>' +
       '<td class="why hide-sm">' + esc(t === "key_user" ? "Regular admin had no activity in " + DATA.monthShort : a.why) + '</td>' +
       '<td>' + zonePill(a) + '</td>' +
       '<td class="num">' + fmt(a.seats) + '</td><td class="num">' + fmt(a.enabled) + '</td><td class="num">' + fmt(a.active) + '</td></tr>';
-    if (open) html += '<tr class="people"><td colspan="8" id="ppl-' + esc(a.iid) + '">' + peopleHtml(a) + '</td></tr>';
+    if (open) html += '<tr class="people"><td colspan="9" id="ppl-' + esc(a.iid) + '">' + peopleHtml(a) + '</td></tr>';
   });
-  if (!list.length) html = '<tr><td colspan="8" class="why" style="text-align:center;padding:24px">No accounts match.</td></tr>';
+  if (!list.length) html = '<tr><td colspan="9" class="why" style="text-align:center;padding:24px">No accounts match.</td></tr>';
   tb.innerHTML = html;
   tb.querySelectorAll("tr.row").forEach(tr => tr.onclick = () => toggleRow(tr.dataset.iid));
   tb.querySelectorAll("[data-export-people]").forEach(b => b.onclick = ev => { ev.stopPropagation(); exportPeople(b.dataset.exportPeople); });
@@ -438,9 +457,9 @@ function download(name, rows){
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 function exportAccounts(){
-  const rows = [["Rank", "Institute ID", "Account", "Health", "New this month", "Why", "Seat use %", "Seat-use zone", "Seats", "Enabled", "Active", "Idle users", "Dormant users", "Regular admin inactive"]];
-  filteredAccounts().forEach((a, i) => rows.push([i + 1, a.iid, a.name, (TAG_STYLE[shownTag(a)] || {}).label || a.tag, a.isNew ? "Yes" : "", a.why,
-    a.pct == null ? "" : a.pct, ZONE_LABEL[a.zone] || "", a.seats, a.enabled, a.active, a.idle, a.dormant, a.keyUserQuiet ? "Yes" : ""]));
+  const rows = [["S.No", "Institute ID", "Institute name", "Health", "Why", "Seat use %", "Seats", "Enabled", "Active", "Idle users", "Dormant users"]];
+  filteredAccounts().forEach((a, i) => rows.push([i + 1, a.iid, a.name, (TAG_STYLE[shownTag(a)] || {}).label || a.tag, a.why,
+    a.pct == null ? "" : a.pct, a.seats, a.enabled, a.active, a.idle, a.dormant]));
   download("users-insights-" + side + "-" + DATA.month.replace(/\s+/g, "-") + ".csv", rows);
 }
 function exportPeople(iid){
@@ -452,7 +471,7 @@ function exportPeople(iid){
 function copySummary(){
   const d = DATA;
   const block = s => d.insights.filter(c => c.side === s).map(c => "• " + c.count + " " + c.text +
-    (c.stake != null ? " (" + fmt(c.stake) + " " + c.stakeLabel + ")" : "") + " → " + c.action).join("\n");
+    (c.stake != null ? " (" + fmt(c.stake) + " " + c.stakeLabel + ")" : "")).join("\n");
   const text = "Users insights · " + d.month + (d.verdict ? "\n" + d.verdict : "") + "\n\nPositives (" + d.counts.strong + " accounts)\n" + (block("strong") || "• Nothing to flag") +
     "\n\nNegatives (" + d.counts.weak + " accounts)\n" + (block("weak") || "• Nothing to flag") + "\n\n(Pulse 2.0)";
   const done = () => { const b = document.getElementById("copyBtn"); b.textContent = "Copied ✓"; setTimeout(() => b.textContent = "Copy summary", 1800); };
