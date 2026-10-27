@@ -98,9 +98,6 @@
   @keyframes spin{to{transform:rotate(360deg)}}
 .head-title{ font-size:17px; font-weight:800; color:#26215c; letter-spacing:-.01em; margin-left:2px; white-space:nowrap; }
 .head-title + .head-info{ margin-left:0; }
-.insights-bar{display:flex;align-items:center;gap:10px;padding:8px 20px;background:var(--bg);border-bottom:1px solid var(--border)}
-.insights-btn{border:1px solid var(--brand);background:#f2f0ff;color:var(--brand);padding:5px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
-.insights-btn:hover{background:#e8e4ff}
 .insights-teaser{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;padding:9px 20px;background:linear-gradient(90deg,#f2f0ff,#fbfaff);border-bottom:1px solid var(--border);font-size:14px}
 .insights-teaser .it-text{color:#26215c;font-weight:600}
 .insights-teaser .it-text.loading{color:var(--muted);font-weight:500}
@@ -1172,16 +1169,6 @@ function insightsSummary_(tab){
   insightsSummary_.inflight[ck] = p;
   return p;
 }
-function insightsBar_(label, onClick){
-  const bar = document.createElement("div");
-  bar.className = "insights-bar";
-  const btn = document.createElement("button");
-  btn.className = "insights-btn";
-  btn.textContent = label;
-  btn.onclick = onClick;
-  bar.appendChild(btn);
-  return bar;
-}
 /* One line of this month's story above the dashboard. The dashboard never waits for it:
    the strip fills in when the (cached) summary arrives. */
 function insightsTeaser_(){
@@ -1214,7 +1201,6 @@ function openInsights_(){
     "&viewer=" + encodeURIComponent(viewingEmail_()) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY) + "&v=" + Date.now(); // v = always load the newest insights page
   const main = document.getElementById("mainArea");
   main.innerHTML = "";
-  main.appendChild(insightsBar_("← Back to " + (TAB_LABELS_[currentTab] || "dashboard"), () => switchTab(currentTab)));
   const wrap = document.createElement("div");
   wrap.className = "frame-wrap";
   const iframe = document.createElement("iframe");
