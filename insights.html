@@ -35,6 +35,18 @@
   .numbers td{color:#fff;font-size:15px;font-weight:600;border-bottom:none;padding:10px 14px}
   .numbers td small{display:block;font-size:11.5px;font-weight:400;color:rgba(255,255,255,.6)}
   .up{color:#6ee7a8} .down{color:#ff9b8f}
+  .verdict{font-size:16px;font-weight:600;line-height:1.45;color:#fff;margin:0 2px 12px}
+  .verdict .bulb{margin-right:6px}
+  /* Seat-use zones */
+  .zones{margin-top:12px}
+  .zones .zt{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.6);font-weight:600;margin-bottom:6px}
+  .zbar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08)}
+  .zbar span{display:block;height:100%}
+  .zlegend{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:7px;font-size:12.5px;color:rgba(255,255,255,.85)}
+  .zlegend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+  .zlegend b{color:#fff}
+  .zlegend small{color:rgba(255,255,255,.55);margin-left:4px}
+  .z-risk{background:#ff8a7a} .z-watch{background:#ffcf70} .z-health{background:#5fdc9c} .z-expand{background:#8fb8ff}
 
   /* Weak | Strong toggle */
   .sides{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
@@ -48,12 +60,21 @@
 
   /* One line per insight */
   .lines{display:flex;flex-direction:column}
-  .line{display:grid;grid-template-columns:56px auto auto auto 1fr;justify-content:start;align-items:center;gap:14px;padding:9px 4px;border-top:1px solid #eff0f5}
+  .line{display:grid;grid-template-columns:56px auto auto auto auto 1fr;justify-content:start;align-items:center;gap:14px;padding:9px 4px;border-top:1px solid #eff0f5}
   .line:first-child{border-top:none}
   .line .cnt{font-size:20px;font-weight:800;text-align:right}
   .weak-side .cnt{color:var(--red)} .strong-side .cnt{color:var(--green)} .check-side .cnt{color:var(--purple)}
   .line .txt{font-size:14px;color:var(--text)}
   .line .act{font-size:13px;color:var(--brand);font-weight:600;white-space:nowrap}
+  .line .stake{font-size:12px;color:var(--grey);background:var(--grey-bg);border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .line .stake b{color:var(--text)}
+  .newb{font-size:10.5px;font-weight:800;letter-spacing:.05em;color:#fff;background:var(--brand);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+  .side .nn{font-size:11.5px;font-weight:600;opacity:.8}
+  .zp{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .zp i{width:8px;height:8px;border-radius:50%}
+  .zp.risk i{background:#e5484d} .zp.watch i{background:#e5a00d} .zp.health i{background:#1f9d5a} .zp.expand i{background:#3b73e0}
+  .rank{color:var(--muted);font-weight:700;width:28px}
+  .subnote{font-size:12px;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0;margin-left:8px}
   .line .see{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);border:none;border-radius:8px;cursor:pointer;padding:5px 10px;font-family:inherit;white-space:nowrap}
   .line .see:hover{background:#e8e4ff}
   .line.focus{background:#fbfaff}
@@ -96,7 +117,7 @@
   @media (max-width:760px){
     .numbers-wrap{overflow-x:auto}
     .line{grid-template-columns:44px minmax(0,1fr);gap:4px 12px}
-    .line .act,.line .see{grid-column:2;justify-self:start}
+    .line .act,.line .see,.line .stake{grid-column:2;justify-self:start}
     .hide-sm{display:none}
   }
 </style>
@@ -151,6 +172,20 @@ function delta(now, then){
   if (!then) return { txt: "—", cls: "" };
   const d = Math.round((now / then - 1) * 100);
   return { txt: (d > 0 ? "▲ +" : d < 0 ? "▼ −" : "") + Math.abs(d) + "%", cls: d > 0 ? "up" : d < 0 ? "down" : "" };
+}
+// Seat-use zones (active / seats), same bands as the engine
+const ZONE_LABEL = { risk: "Churn risk", watch: "Watch", health: "Healthy", expand: "Expansion signal" };
+const zoneOfPct = p => p == null || isNaN(p) ? "" : p < 50 ? "risk" : p < 60 ? "watch" : p < 90 ? "health" : "expand";
+function zonesHtml(zones){
+  if (!zones || !zones.length) return "";
+  const total = zones.reduce((s, z) => s + z.count, 0) || 1;
+  return '<div class="zones"><div class="zt">Seat use across accounts</div>' +
+    '<div class="zbar">' + zones.map(z => '<span class="z-' + z.id + '" style="width:' + (z.count * 100 / total) + '%" title="' + esc(z.label + ": " + z.count) + '"></span>').join("") + '</div>' +
+    '<div class="zlegend">' + zones.map(z => '<span><i class="z-' + z.id + '"></i>' + esc(z.label) + ' <b>' + fmt(z.count) + '</b><small>' + esc(z.range) + '</small></span>').join("") + '</div></div>';
+}
+function zonePill(a){
+  if (a.pct == null) return '<span class="why">—</span>';
+  return '<span class="zp ' + esc(a.zone) + '" title="' + esc(ZONE_LABEL[a.zone] || "") + '"><i></i>' + a.pct + '%</span>';
 }
 // In the weak view an account whose admin went quiet, but whose own tag is not weak, shows as "Admin gone quiet"
 const shownTag = a => (side === "weak" && SIDES.weak.tags.indexOf(a.tag) === -1 && a.keyUserQuiet) ? "key_user" : a.tag;
@@ -221,15 +256,17 @@ function render(){
 
     '<div class="hero">' +
       '<div class="eyebrow">What happened in ' + esc(d.month) + '</div>' +
+      (d.verdict ? '<div class="verdict"><span class="bulb">💡</span>' + esc(d.verdict) + '</div>' : "") +
       '<div class="numbers-wrap"><table class="numbers"><thead><tr>' +
         '<th>Seats</th><th>Enabled</th><th>Active (' + esc(d.monthShort) + ')</th><th>vs last ' + esc(d.monthShort) + '</th><th>vs ' + esc(d.prevMonth) + '</th>' +
       '</tr></thead><tbody><tr>' +
         '<td>' + fmt(k.seats) + '</td>' +
         '<td>' + fmt(k.enabled) + '<small>' + pct(k.enabled, k.seats) + '% of seats</small></td>' +
-        '<td>' + fmt(k.active) + '<small>' + pct(k.active, k.seats) + '% of seats</small></td>' +
+        '<td>' + fmt(k.active) + '<small>' + pct(k.active, k.seats) + '% of seats' + (zoneOfPct(pct(k.active, k.seats)) ? ' · ' + ZONE_LABEL[zoneOfPct(pct(k.active, k.seats))].toLowerCase() + ' zone' : "") + '</small></td>' +
         '<td><span class="' + vsLy.cls + '">' + vsLy.txt + '</span><small>' + fmt(k.lastYear) + ' a year ago</small></td>' +
         '<td><span class="' + vsPrev.cls + '">' + vsPrev.txt + '</span><small>' + esc(d.seasonNote || "") + '</small></td>' +
       '</tr></tbody></table></div>' +
+      zonesHtml(d.zones) +
     '</div>' +
 
     '<div class="card">' +
@@ -241,7 +278,7 @@ function render(){
       '<div class="section-title" id="healthTitle"></div>' +
       '<div class="filters" id="filters"></div>' +
       '<div class="tbl-wrap"><table><thead><tr>' +
-        '<th>Account</th><th>Health</th><th class="hide-sm">Why</th>' +
+        '<th class="rank">#</th><th>Account</th><th>Health</th><th class="hide-sm">Why</th><th>Seat use</th>' +
         '<th class="num">Seats</th><th class="num">Enabled</th><th class="num">Active</th>' +
       '</tr></thead><tbody id="tbody"></tbody></table></div>' +
       '<div class="more" id="more"></div>' +
@@ -258,13 +295,16 @@ function renderSide(){
   const sides = ["weak", "strong"].concat(d.counts.check ? ["check"] : []);
   document.getElementById("sides").innerHTML = sides.map(s =>
     '<button class="side ' + s + (side === s ? " on" : "") + '" data-side="' + s + '"><span class="dot"></span>' +
-    esc(SIDES[s].label) + ' <span class="n">' + fmt(d.counts[s]) + '</span></button>').join("");
+    esc(SIDES[s].label) + ' <span class="n">' + fmt(d.counts[s]) + '</span>' +
+    (d.newCounts && d.newCounts[s] ? '<span class="nn">' + fmt(d.newCounts[s]) + ' new</span>' : "") + '</button>').join("");
   document.querySelectorAll(".side").forEach(b => b.onclick = () => {
     side = b.dataset.side; filterTag = null; focus = null; searchText = ""; shown = CONFIG.PAGE_SIZE;
     try { if (side !== "check") localStorage.setItem("insSide", side); } catch (e) {}
     renderSide();
   });
-  document.getElementById("healthTitle").textContent = "Account health · " + SIDES[side].label.toLowerCase();
+  document.getElementById("healthTitle").innerHTML =
+    esc({ weak: "Act on these first", strong: "Grow these first", check: "Fix these first" }[side]) +
+    '<span class="subnote">ranked by size of impact · NEW = flagged for the first time this month</span>';
   renderLines();
   renderFilters();
   renderTable();
@@ -278,7 +318,8 @@ function renderLines(){
   el.innerHTML = list.map((c, i) =>
     '<div class="line' + (focus && focus.id === c.id ? " focus" : "") + '">' +
       '<span class="cnt">' + fmt(c.count) + '</span>' +
-      '<span class="txt">' + esc(c.text) + '</span>' +
+      '<span class="txt">' + esc(c.text) + (c.newCount ? '<span class="newb">' + fmt(c.newCount) + ' NEW</span>' : "") + '</span>' +
+      (c.stake != null ? '<span class="stake"><b>' + fmt(c.stake) + '</b> ' + esc(c.stakeLabel) + '</span>' : '<span></span>') +
       '<span class="act">→ ' + esc(c.action) + '</span>' +
       '<button class="see" data-i="' + i + '">See ↓</button>' +
     '</div>').join("");
@@ -331,17 +372,19 @@ function renderTable(){
   const list = filteredAccounts();
   const tb = document.getElementById("tbody");
   let html = "";
-  list.slice(0, shown).forEach(a => {
+  list.slice(0, shown).forEach((a, i) => {
     const open = openRows.has(a.iid), t = shownTag(a);
     html += '<tr class="row' + (open ? " open" : "") + '" data-iid="' + esc(a.iid) + '">' +
-      '<td class="acct"><span class="caret">▸</span>' + esc(a.name) +
+      '<td class="rank">' + (i + 1) + '</td>' +
+      '<td class="acct"><span class="caret">▸</span>' + esc(a.name) + (a.isNew ? '<span class="newb">NEW</span>' : "") +
         (a.keyUserQuiet && t !== "key_user" ? '<div class="kq">Regular admin inactive</div>' : "") + '</td>' +
       '<td>' + pill(t) + '</td>' +
       '<td class="why hide-sm">' + esc(t === "key_user" ? "Regular admin had no activity in " + DATA.monthShort : a.why) + '</td>' +
+      '<td>' + zonePill(a) + '</td>' +
       '<td class="num">' + fmt(a.seats) + '</td><td class="num">' + fmt(a.enabled) + '</td><td class="num">' + fmt(a.active) + '</td></tr>';
-    if (open) html += '<tr class="people"><td colspan="6" id="ppl-' + esc(a.iid) + '">' + peopleHtml(a) + '</td></tr>';
+    if (open) html += '<tr class="people"><td colspan="8" id="ppl-' + esc(a.iid) + '">' + peopleHtml(a) + '</td></tr>';
   });
-  if (!list.length) html = '<tr><td colspan="6" class="why" style="text-align:center;padding:24px">No accounts match.</td></tr>';
+  if (!list.length) html = '<tr><td colspan="8" class="why" style="text-align:center;padding:24px">No accounts match.</td></tr>';
   tb.innerHTML = html;
   tb.querySelectorAll("tr.row").forEach(tr => tr.onclick = () => toggleRow(tr.dataset.iid));
   tb.querySelectorAll("[data-export-people]").forEach(b => b.onclick = ev => { ev.stopPropagation(); exportPeople(b.dataset.exportPeople); });
@@ -397,8 +440,9 @@ function download(name, rows){
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 function exportAccounts(){
-  const rows = [["Institute ID", "Account", "Health", "Why", "Seats", "Enabled", "Active", "Idle users", "Dormant users", "Regular admin inactive"]];
-  filteredAccounts().forEach(a => rows.push([a.iid, a.name, (TAG_STYLE[shownTag(a)] || {}).label || a.tag, a.why, a.seats, a.enabled, a.active, a.idle, a.dormant, a.keyUserQuiet ? "Yes" : ""]));
+  const rows = [["Rank", "Institute ID", "Account", "Health", "New this month", "Why", "Seat use %", "Seat-use zone", "Seats", "Enabled", "Active", "Idle users", "Dormant users", "Regular admin inactive"]];
+  filteredAccounts().forEach((a, i) => rows.push([i + 1, a.iid, a.name, (TAG_STYLE[shownTag(a)] || {}).label || a.tag, a.isNew ? "Yes" : "", a.why,
+    a.pct == null ? "" : a.pct, ZONE_LABEL[a.zone] || "", a.seats, a.enabled, a.active, a.idle, a.dormant, a.keyUserQuiet ? "Yes" : ""]));
   download("users-insights-" + side + "-" + DATA.month.replace(/\s+/g, "-") + ".csv", rows);
 }
 function exportPeople(iid){
@@ -409,8 +453,9 @@ function exportPeople(iid){
 }
 function copySummary(){
   const d = DATA;
-  const block = s => d.insights.filter(c => c.side === s).map(c => "• " + c.count + " " + c.text + " → " + c.action).join("\n");
-  const text = "Users insights · " + d.month + "\n\nWeak picture (" + d.counts.weak + " accounts)\n" + (block("weak") || "• Nothing to flag") +
+  const block = s => d.insights.filter(c => c.side === s).map(c => "• " + c.count + " " + c.text +
+    (c.stake != null ? " (" + fmt(c.stake) + " " + c.stakeLabel + ")" : "") + " → " + c.action).join("\n");
+  const text = "Users insights · " + d.month + (d.verdict ? "\n" + d.verdict : "") + "\n\nWeak picture (" + d.counts.weak + " accounts)\n" + (block("weak") || "• Nothing to flag") +
     "\n\nStrong picture (" + d.counts.strong + " accounts)\n" + (block("strong") || "• Nothing to flag") + "\n\n(Pulse 2.0)";
   const done = () => { const b = document.getElementById("copyBtn"); b.textContent = "Copied ✓"; setTimeout(() => b.textContent = "Copy summary", 1800); };
   if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
