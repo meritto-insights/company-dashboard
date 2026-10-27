@@ -1093,7 +1093,7 @@ function insightsTeaser_(){
   bar.className = "insights-teaser";
   const text = document.createElement("span");
   text.className = "it-text loading";
-  text.textContent = "✨ Reading this month's story…";
+  text.textContent = "✨ Reading the " + (TAB_LABELS_[currentTab] || "dashboard") + " story…";
   const link = document.createElement("button");
   link.className = "it-link";
   link.textContent = "See the story →";
@@ -1104,7 +1104,7 @@ function insightsTeaser_(){
   const show = d => {
     if (!bar.isConnected || viewingEmail_() !== viewer) return;
     text.classList.remove("loading");
-    text.textContent = "✨ " + (d && d.teaser ? d.teaser : "This month's Users insights are ready.");
+    text.textContent = "✨ " + (d && d.teaser ? d.teaser : "The " + (TAB_LABELS_[currentTab] || "dashboard") + " insights are ready.");
   };
   const ck = "insSum_" + currentTab + "_" + viewer;
   try {
