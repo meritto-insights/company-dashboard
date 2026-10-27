@@ -101,6 +101,11 @@
 .insights-bar{display:flex;align-items:center;gap:10px;padding:8px 20px;background:var(--bg);border-bottom:1px solid var(--border)}
 .insights-btn{border:1px solid var(--brand);background:#f2f0ff;color:var(--brand);padding:5px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .insights-btn:hover{background:#e8e4ff}
+.insights-teaser{display:flex;align-items:center;gap:12px;padding:9px 20px;background:linear-gradient(90deg,#f2f0ff,#fbfaff);border-bottom:1px solid var(--border);font-size:14px}
+.insights-teaser .it-text{flex:1;color:#26215c;font-weight:600;min-width:0}
+.insights-teaser .it-text.loading{color:var(--muted);font-weight:500}
+.insights-teaser .it-link{border:none;background:none;color:var(--brand);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;white-space:nowrap;padding:4px 0}
+.insights-teaser .it-link:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -218,9 +223,10 @@ const CONFIG = {
     }
   },
 
-  // Insights page (insights.html in this same repo). The "Insights" button shows on these tabs only,
-  // and for now only to OWNER_EMAILS. It opens the page with ?dashboard=<tab>&viewer=<email>&key=<shared key>.
+  // Insights page (insights.html in this same repo). A one-line story strip shows above these tabs only,
+  // and for now only to OWNER_EMAILS. "See the story" opens the page with ?dashboard=<tab>&viewer=<email>&key=<shared key>.
   INSIGHTS_PAGE_URL: "insights.html",
+  INSIGHTS_ENDPOINT: "https://script.google.com/macros/s/AKfycbzZ2PhbIwnRJXCey6H-ZqUaignm-CoqqKP39GVwAMH31o3OhK3dmcPsAiXqQ8b8wYQL7A/exec",
   INSIGHTS_TABS: ["users"]
 };
 </script>
@@ -1050,7 +1056,7 @@ function renderFrame(src){
   iframe.id = "dashFrame";
   iframe.src = src;
   wrap.appendChild(iframe);
-  if (canShowInsights_()) main.appendChild(insightsBar_("✨ Insights", openInsights_));
+  if (canShowInsights_()) main.appendChild(insightsTeaser_());
   main.appendChild(wrap);
   sizeFrame();
 }
@@ -1074,6 +1080,42 @@ function insightsBar_(label, onClick){
   bar.appendChild(btn);
   return bar;
 }
+/* One line of this month's story above the dashboard. The dashboard never waits for it:
+   the strip fills in when the (cached) summary arrives. */
+function insightsTeaser_(){
+  const viewer = viewingEmail_();
+  const bar = document.createElement("div");
+  bar.className = "insights-teaser";
+  const text = document.createElement("span");
+  text.className = "it-text loading";
+  text.textContent = "✨ Reading this month's story…";
+  const link = document.createElement("button");
+  link.className = "it-link";
+  link.textContent = "See the story →";
+  link.onclick = openInsights_;
+  bar.appendChild(text);
+  bar.appendChild(link);
+
+  const show = d => {
+    if (!bar.isConnected || viewingEmail_() !== viewer) return;
+    text.classList.remove("loading");
+    text.textContent = "✨ " + (d && d.teaser ? d.teaser : "This month's Users insights are ready.");
+  };
+  const ck = "insSum_" + currentTab + "_" + viewer;
+  try {
+    const c = JSON.parse(sessionStorage.getItem(ck) || "null");
+    if (c && Date.now() - c.t < 30 * 60 * 1000) { show(c.d); return bar; }
+  } catch (e) {}
+  const url = CONFIG.INSIGHTS_ENDPOINT + "?dashboard=" + encodeURIComponent(currentTab) + "&action=summary" +
+    "&viewer=" + encodeURIComponent(viewer) + "&key=" + encodeURIComponent(CONFIG.NPS_SHARED_KEY);
+  fetch(url).then(r => r.json()).then(d => {
+    if (!d || !d.teaser) { show(null); return; }
+    try { sessionStorage.setItem(ck, JSON.stringify({ t: Date.now(), d })); } catch (e) {}
+    show(d);
+  }).catch(() => show(null));
+  return bar;
+}
+
 function openInsights_(){
   insightsOpen = true;
   const url = CONFIG.INSIGHTS_PAGE_URL + "?dashboard=" + encodeURIComponent(currentTab) +
