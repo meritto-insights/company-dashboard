@@ -150,8 +150,8 @@ const TAG_STYLE = {
   data_check:    { cls: "t-purple", label: "Data check" }
 };
 const SIDES = {
-  weak:   { label: "Weak picture",   tags: ["gone_silent", "key_user", "sharp_drop", "never_started", "low_util", "unused_seats"] },
-  strong: { label: "Strong picture", tags: ["strength", "over_limit", "rising", "back"] },
+  weak:   { label: "Negatives",   tags: ["gone_silent", "key_user", "sharp_drop", "never_started", "low_util", "unused_seats"] },
+  strong: { label: "Positives", tags: ["strength", "over_limit", "rising", "back"] },
   check:  { label: "Data check",     tags: ["data_check"] }
 };
 
@@ -212,12 +212,11 @@ function loadDemo(){
 
 /* ================= STATE ================= */
 let DATA = null;
-let side = "weak";
+let side = "strong"; // Positives open first
 let filterTag = null, searchText = "", shown = CONFIG.PAGE_SIZE;
 let focus = null; // { id, iids:Set, label } when "See" was clicked on an insight line
 const openRows = new Set();
 const peopleCache = {};
-try { if (["weak", "strong"].indexOf(localStorage.getItem("insSide")) !== -1) side = localStorage.getItem("insSide"); } catch (e) {}
 
 /* ================= LOAD ================= */
 (async function init(){
@@ -292,14 +291,13 @@ function render(){
 
 function renderSide(){
   const d = DATA;
-  const sides = ["weak", "strong"].concat(d.counts.check ? ["check"] : []);
+  const sides = ["strong", "weak"].concat(d.counts.check ? ["check"] : []);
   document.getElementById("sides").innerHTML = sides.map(s =>
     '<button class="side ' + s + (side === s ? " on" : "") + '" data-side="' + s + '"><span class="dot"></span>' +
     esc(SIDES[s].label) + ' <span class="n">' + fmt(d.counts[s]) + '</span>' +
     (d.newCounts && d.newCounts[s] ? '<span class="nn">' + fmt(d.newCounts[s]) + ' new</span>' : "") + '</button>').join("");
   document.querySelectorAll(".side").forEach(b => b.onclick = () => {
     side = b.dataset.side; filterTag = null; focus = null; searchText = ""; shown = CONFIG.PAGE_SIZE;
-    try { if (side !== "check") localStorage.setItem("insSide", side); } catch (e) {}
     renderSide();
   });
   document.getElementById("healthTitle").innerHTML =
@@ -455,8 +453,8 @@ function copySummary(){
   const d = DATA;
   const block = s => d.insights.filter(c => c.side === s).map(c => "• " + c.count + " " + c.text +
     (c.stake != null ? " (" + fmt(c.stake) + " " + c.stakeLabel + ")" : "") + " → " + c.action).join("\n");
-  const text = "Users insights · " + d.month + (d.verdict ? "\n" + d.verdict : "") + "\n\nWeak picture (" + d.counts.weak + " accounts)\n" + (block("weak") || "• Nothing to flag") +
-    "\n\nStrong picture (" + d.counts.strong + " accounts)\n" + (block("strong") || "• Nothing to flag") + "\n\n(Pulse 2.0)";
+  const text = "Users insights · " + d.month + (d.verdict ? "\n" + d.verdict : "") + "\n\nPositives (" + d.counts.strong + " accounts)\n" + (block("strong") || "• Nothing to flag") +
+    "\n\nNegatives (" + d.counts.weak + " accounts)\n" + (block("weak") || "• Nothing to flag") + "\n\n(Pulse 2.0)";
   const done = () => { const b = document.getElementById("copyBtn"); b.textContent = "Copied ✓"; setTimeout(() => b.textContent = "Copy summary", 1800); };
   if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
   else fallbackCopy(text, done);
