@@ -334,7 +334,7 @@ function renderLines(){
   el.className = "lines " + side + "-side";
   if (!list.length){ el.innerHTML = '<p class="why" style="padding:6px 4px">Nothing to flag here this month.</p>'; return; }
   el.innerHTML = list.map((c, i) =>
-    '<div class="line' + (focus && focus.id === c.id ? " focus" : "") + '">' +
+    '<div class="line' + ((focus && focus.id === c.id) || filterTag === c.id ? " focus" : "") + '">' +
       '<span class="cnt">' + fmt(c.count) + '</span>' +
       '<span class="txt">' + esc(c.text) + '</span>' +
       (c.stake != null ? '<span class="stake"><b>' + fmt(c.stake) + '</b> ' + esc(c.stakeLabel) + '</span>' : '<span></span>') +
@@ -342,8 +342,10 @@ function renderLines(){
     '</div>').join("");
   el.querySelectorAll(".see").forEach(b => b.onclick = () => {
     const c = list[+b.dataset.i];
-    focus = { id: c.id, iids: new Set(c.iids), label: c.count + " " + c.text };
-    filterTag = null; shown = CONFIG.PAGE_SIZE;
+    // Select the matching chip in the table (same accounts as the line); a separate chip only if none matches
+    if (SIDES[side].tags.indexOf(c.id) !== -1){ filterTag = c.id; focus = null; }
+    else { focus = { id: c.id, iids: new Set(c.iids), label: c.count + " " + c.text }; filterTag = null; }
+    searchText = ""; shown = CONFIG.PAGE_SIZE;
     renderLines(); renderFilters(); renderTable();
     document.getElementById("healthCard").scrollIntoView({ behavior: "smooth", block: "start" });
   });
