@@ -83,17 +83,6 @@
   .line .see{font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);border:none;border-radius:8px;cursor:pointer;padding:5px 10px;font-family:inherit;white-space:nowrap}
   .line .see:hover{background:#e8e4ff}
   .line.focus{background:#fbfaff}
-  ul.spot{list-style:none;display:flex;flex-direction:column}
-  ul.spot li{position:relative;padding:9px 4px 9px 22px;border-top:1px solid #eff0f5;font-size:14px;line-height:1.5}
-  ul.spot li:first-child{border-top:none}
-  ul.spot li::before{content:"";position:absolute;left:6px;top:16px;width:8px;height:8px;border-radius:50%}
-  .weak-side ul.spot li::before{background:var(--red)} .strong-side ul.spot li::before{background:var(--green)}
-  ul.spot .see{margin-left:8px;font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-soft);border:none;border-radius:8px;cursor:pointer;padding:3px 9px;font-family:inherit;white-space:nowrap}
-  ul.spot .see:hover{background:#e8e4ff}
-  .warn{background:#fff7e6;border:1px solid #f0e0bb;color:#7a5a12;border-radius:10px;padding:10px 12px;font-size:13px}
-  th.sortable{cursor:pointer;user-select:none} th.sortable:hover{color:var(--brand)}
-  tr.row.hl td{background:#fff4c2 !important;transition:background .4s}
-  .inst-l{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);font-weight:600}
 
   /* Health table */
   .filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;align-items:center}
@@ -162,17 +151,11 @@ const TAG_STYLE = {
   strength:      { cls: "t-green",  label: "Strength" },
   rising:        { cls: "t-green",  label: "Rising" },
   back:          { cls: "t-teal",   label: "Back in action" },
-  data_check:    { cls: "t-purple", label: "Data check" },
-  slipping:      { cls: "t-red",    label: "Slipping vs season" },
-  sliding:       { cls: "t-red",    label: "3-month slide" },
-  shrinking:     { cls: "t-amber",  label: "Smaller than last year" },
-  beat_season:   { cls: "t-green",  label: "Beating season" },
-  climbing:      { cls: "t-green",  label: "Climbing" },
-  grown:         { cls: "t-teal",   label: "Bigger than last year" }
+  data_check:    { cls: "t-purple", label: "Data check" }
 };
 const SIDES = {
-  weak:   { label: "Negatives",   tags: ["gone_silent", "slipping", "sliding", "shrinking", "key_user", "sharp_drop", "never_started", "low_util", "unused_seats"] },
-  strong: { label: "Positives", tags: ["beat_season", "climbing", "grown", "strength", "over_limit", "rising", "back"] },
+  weak:   { label: "Negatives",   tags: ["gone_silent", "key_user", "sharp_drop", "never_started", "low_util", "unused_seats"] },
+  strong: { label: "Positives", tags: ["strength", "over_limit", "rising", "back"] },
   check:  { label: "Data check",     tags: ["data_check"] }
 };
 
@@ -254,7 +237,6 @@ function loadDemo(){
 let DATA = null;
 let side = "strong"; // Positives open first
 let filterTag = null, searchText = "", shown = CONFIG.PAGE_SIZE;
-let sortKey = null, sortDir = 1; // null = ranked order from the engine
 let focus = null; // { id, iids:Set, label } when "See" was clicked on an insight line
 const openRows = new Set();
 const peopleCache = {};
@@ -318,9 +300,8 @@ function render(){
       '<div class="section-title" id="healthTitle"></div>' +
       '<div class="filters" id="filters"></div>' +
       '<div class="tbl-wrap"><table><thead><tr>' +
-        '<th class="rank">S.No</th>' + sortTh("iid", "Institute ID") + sortTh("name", "Institute name") + sortTh("health", "Health") +
-        '<th class="hide-sm">Why</th>' + sortTh("pct", "Seat use") +
-        sortTh("seats", "Seats", "num") + sortTh("enabled", "Enabled", "num") + sortTh("active", "Active", "num") +
+        '<th class="rank">S.No</th><th>Institute ID</th><th>Institute name</th><th>Health</th><th class="hide-sm">Why</th><th>Seat use</th>' +
+        '<th class="num">Seats</th><th class="num">Enabled</th><th class="num">Active</th>' +
       '</tr></thead><tbody id="tbody"></tbody></table></div>' +
       '<div class="more" id="more"></div>' +
     '</div>' +
@@ -328,20 +309,7 @@ function render(){
       ' Healthy and small accounts are not listed.</div>';
 
   document.getElementById("copyBtn").onclick = copySummary;
-  document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
-    const k = th.dataset.sort;
-    if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = (k === "name" || k === "health" || k === "iid") ? 1 : -1; }
-    shown = CONFIG.PAGE_SIZE; renderTable(); markSort();
-  });
   renderSide();
-}
-function sortTh(k, label, cls){
-  return '<th class="sortable' + (cls ? " " + cls : "") + '" data-sort="' + k + '" title="Click to sort">' + esc(label) + '<span class="sa"></span></th>';
-}
-function markSort(){
-  document.querySelectorAll("th[data-sort]").forEach(th => {
-    th.querySelector(".sa").textContent = th.dataset.sort === sortKey ? (sortDir > 0 ? " ▲" : " ▼") : "";
-  });
 }
 
 function renderSide(){
@@ -360,32 +328,27 @@ function renderSide(){
   renderTable();
 }
 
-// Spotlight: the few named accounts that matter most. One account = See ↓ jumps to its row; several = no arrow.
 function renderLines(){
   const el = document.getElementById("lines");
+  const list = DATA.insights.filter(c => c.side === side);
   el.className = "lines " + side + "-side";
-  if (side === "weak" && DATA.dataSuspect){
-    el.innerHTML = '<p class="warn">⚠ This month\'s data looks incomplete (all accounts together are far below their usual level), so no accounts are named. Check the monthly upload.</p>';
-    return;
-  }
-  const list = (DATA.spotlight || []).filter(b => b.side === side);
-  if (!list.length){ el.innerHTML = '<p class="why" style="padding:6px 4px">Nothing critical to call out this month.</p>'; return; }
-  el.innerHTML = '<ul class="spot">' + list.map((b, i) =>
-    '<li>' + esc(b.text) + (b.iids.length === 1 ? ' <button class="see" data-i="' + i + '">See ↓</button>' : "") + '</li>').join("") + '</ul>';
-  el.querySelectorAll(".see").forEach(btn => btn.onclick = () => jumpTo(list[+btn.dataset.i].iids[0]));
-}
-// Show the account's row in the table (clearing filters if needed) and flash it
-function jumpTo(iid){
-  filterTag = null; focus = null; searchText = ""; sortKey = null; sortDir = 1;
-  const inst = document.getElementById("inst"); if (inst) inst.value = "";
-  const idx = filteredAccounts().findIndex(a => a.iid === iid);
-  if (idx === -1) return;
-  shown = Math.max(shown, idx + 1);
-  renderFilters(); renderTable(); markSort();
-  const tr = document.querySelector('tr.row[data-iid="' + CSS.escape(iid) + '"]');
-  if (!tr) return;
-  tr.scrollIntoView({ behavior: "smooth", block: "center" });
-  tr.classList.add("hl"); setTimeout(() => tr.classList.remove("hl"), 2600);
+  if (!list.length){ el.innerHTML = '<p class="why" style="padding:6px 4px">Nothing to flag here this month.</p>'; return; }
+  el.innerHTML = list.map((c, i) =>
+    '<div class="line' + ((focus && focus.id === c.id) || filterTag === c.id ? " focus" : "") + '">' +
+      '<span class="cnt">' + fmt(c.count) + '</span>' +
+      '<span class="txt">' + esc(c.text) + '</span>' +
+      (c.stake != null ? '<span class="stake"><b>' + fmt(c.stake) + '</b> ' + esc(c.stakeLabel) + '</span>' : '<span></span>') +
+      '<button class="see" data-i="' + i + '">See ↓</button>' +
+    '</div>').join("");
+  el.querySelectorAll(".see").forEach(b => b.onclick = () => {
+    const c = list[+b.dataset.i];
+    // Select the matching chip in the table (same accounts as the line); a separate chip only if none matches
+    if (SIDES[side].tags.indexOf(c.id) !== -1){ filterTag = c.id; focus = null; }
+    else { focus = { id: c.id, iids: new Set(c.iids), label: c.count + " " + c.text }; filterTag = null; }
+    searchText = ""; shown = CONFIG.PAGE_SIZE;
+    renderLines(); renderFilters(); renderTable();
+    document.getElementById("healthCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function sideAccounts(){ return DATA.accounts.filter(a => a.side === side); }
@@ -402,9 +365,7 @@ function renderFilters(){
     html += '<button class="fchip' + (filterTag === t ? " active" : "") + '" data-tag="' + t + '">' + esc(TAG_STYLE[t].label) + ' <b>' + fmt(counts[t]) + '</b>' + (DATA.tips && DATA.tips[t] ? tipI(DATA.tips[t]) : "") + '</button>';
   });
   if (focus) html += '<button class="fchip active" data-focus="1">' + esc(TAG_STYLE[focus.id] ? TAG_STYLE[focus.id].label : "Selected") + ' <b>' + fmt(focus.iids.size) + '</b> ✕</button>';
-  html += '<span class="spacer"></span><label class="inst-l">Institute name <input class="search" id="inst" list="instList" placeholder="Type or pick an institute" value="' + esc(searchText) + '"></label>' +
-          '<datalist id="instList">' + all.map(a => '<option value="' + esc(a.name) + '">').join("") + '</datalist>' +
-          (searchText ? '<button class="btn" id="instClear" title="Clear">✕</button>' : "") +
+  html += '<span class="spacer"></span><input class="search" id="search" placeholder="Search account" value="' + esc(searchText) + '">' +
           '<button class="btn" id="exportBtn">⬇ Export</button>';
   el.innerHTML = html;
   el.querySelectorAll(".fchip").forEach(b => b.onclick = e => {
@@ -413,11 +374,8 @@ function renderFilters(){
     else { filterTag = b.dataset.tag || null; focus = null; }
     shown = CONFIG.PAGE_SIZE; renderLines(); renderFilters(); renderTable();
   });
-  const inp = document.getElementById("inst");
-  inp.oninput = () => { searchText = inp.value; shown = CONFIG.PAGE_SIZE; renderTable(); };
-  inp.onchange = () => { renderFilters(); document.getElementById("inst").focus(); };
-  const ic = document.getElementById("instClear");
-  if (ic) ic.onclick = () => { searchText = ""; shown = CONFIG.PAGE_SIZE; renderFilters(); renderTable(); };
+  const s = document.getElementById("search");
+  s.oninput = () => { searchText = s.value; shown = CONFIG.PAGE_SIZE; renderTable(); };
   document.getElementById("exportBtn").onclick = exportAccounts;
 }
 
@@ -425,13 +383,9 @@ function filteredAccounts(){
   const q = searchText.trim().toLowerCase();
   // "See" on an insight line can reach accounts on the other side (e.g. an admin-quiet strong account), so focus searches all
   const base = focus ? DATA.accounts.filter(a => focus.iids.has(a.iid)) : sideAccounts();
-  const out = base.filter(a =>
+  return base.filter(a =>
     (!filterTag || (filterTag === "key_user" ? a.keyUserQuiet : shownTag(a) === filterTag)) &&
     (!q || a.name.toLowerCase().indexOf(q) !== -1));
-  if (!sortKey) return out;
-  const val = a => sortKey === "health" ? ((TAG_STYLE[shownTag(a)] || {}).label || a.tag)
-    : sortKey === "name" ? a.name.toLowerCase() : sortKey === "iid" ? Number(a.iid) : (a[sortKey] == null ? -1 : a[sortKey]);
-  return out.slice().sort((x, y) => { const p = val(x), r = val(y); return (p < r ? -1 : p > r ? 1 : 0) * sortDir; });
 }
 
 function renderTable(){
@@ -518,10 +472,10 @@ function exportPeople(iid){
 }
 function copySummary(){
   const d = DATA;
-  const block = sd => (d.spotlight || []).filter(b => b.side === sd).map(b => "• " + b.text).join("\n");
-  const text = "Users insights · " + d.month + (d.verdict ? "\n" + d.verdict : "") +
-    "\n\nPositives\n" + (block("strong") || "• Nothing to call out") +
-    "\n\nNegatives\n" + (d.dataSuspect ? "• Data looks incomplete this month" : (block("weak") || "• Nothing critical")) + "\n\n(Pulse 2.0)";
+  const block = s => d.insights.filter(c => c.side === s).map(c => "• " + c.count + " " + c.text +
+    (c.stake != null ? " (" + fmt(c.stake) + " " + c.stakeLabel + ")" : "")).join("\n");
+  const text = "Users insights · " + d.month + (d.verdict ? "\n" + d.verdict : "") + "\n\nPositives (" + d.counts.strong + " accounts)\n" + (block("strong") || "• Nothing to flag") +
+    "\n\nNegatives (" + d.counts.weak + " accounts)\n" + (block("weak") || "• Nothing to flag") + "\n\n(Pulse 2.0)";
   const done = () => { const b = document.getElementById("copyBtn"); b.textContent = "Copied ✓"; setTimeout(() => b.textContent = "Copy summary", 1800); };
   if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
   else fallbackCopy(text, done);
